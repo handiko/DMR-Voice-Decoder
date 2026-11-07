@@ -1,0 +1,2513 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: '[DMR]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: 'DMR receiver back end: matched filter, sync correlator bank, burst framer, Layer 2 decoder and AMBE+2 vocoder'
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: hb
+    hier_block_src_path: '.:'
+    id: dmr_decoder
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: DMR Decoder
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 8
+    rotation: 0
+    state: enabled
+blocks:
+- name: sync_thresh
+  id: parameter
+  parameters:
+    comment: ''
+    label: Sync threshold
+    value: '0.8'
+    type: eng_float
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 200
+    - 8
+    rotation: 0
+    state: enabled
+- name: color_code
+  id: parameter
+  parameters:
+    comment: ''
+    label: Colour code (-1 = any)
+    value: '-1'
+    type: intx
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 390
+    - 8
+    rotation: 0
+    state: enabled
+- name: dedup_s
+  id: parameter
+  parameters:
+    comment: ''
+    label: Repeat suppression [s]
+    value: '10.0'
+    type: eng_float
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 580
+    - 8
+    rotation: 0
+    state: enabled
+- name: stats_every
+  id: parameter
+  parameters:
+    comment: ''
+    label: Status panel every [s]
+    value: '10.0'
+    type: eng_float
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 770
+    - 8
+    rotation: 0
+    state: enabled
+- name: rf_hz
+  id: parameter
+  parameters:
+    comment: ''
+    label: RF frequency [Hz]
+    value: '0'
+    type: eng_float
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 960
+    - 8
+    rotation: 0
+    state: enabled
+- name: plan_ref_lpcn
+  id: parameter
+  parameters:
+    comment: ''
+    label: 'Plan: reference LPCN'
+    value: '0'
+    type: intx
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1150
+    - 8
+    rotation: 0
+    state: enabled
+- name: plan_ref_hz
+  id: parameter
+  parameters:
+    comment: ''
+    label: 'Plan: reference freq [Hz]'
+    value: '0'
+    type: eng_float
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 200
+    - 108
+    rotation: 0
+    state: enabled
+- name: plan_step_hz
+  id: parameter
+  parameters:
+    comment: ''
+    label: 'Plan: step [Hz]'
+    value: '12500'
+    type: eng_float
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 390
+    - 108
+    rotation: 0
+    state: enabled
+- name: audio_slot
+  id: parameter
+  parameters:
+    comment: ''
+    label: Play slot (0 = both)
+    value: '0'
+    type: intx
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 580
+    - 108
+    rotation: 0
+    state: enabled
+- name: mbelib_path
+  id: parameter
+  parameters:
+    comment: ''
+    label: mbelib path
+    value: ''''''
+    type: str
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 770
+    - 108
+    rotation: 0
+    state: enabled
+- name: audio_delay
+  id: parameter
+  parameters:
+    comment: ''
+    label: Audio delay [s]
+    value: '0.4'
+    type: eng_float
+    short_id: ''
+    hide: none
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 960
+    - 108
+    rotation: 0
+    state: enabled
+- name: sps
+  id: variable
+  parameters:
+    comment: 10 samples per symbol at 48 kS/s
+    value: '10'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1380
+    - 8
+    rotation: 0
+    state: enabled
+- name: taps
+  id: epy_module
+  parameters:
+    alias: ''
+    comment: 'Python Module: correlator / RRC taps'
+    source_code: |
+      """
+      Taps for the DMR Decoder hier block (Python Module block).
+
+      corr_taps(word): matched filter for one 48-bit sync word. The 24 sync symbols (+-3 levels)
+        are made zero-mean and unit-energy, placed every `sps` samples and time-reversed, so the
+        stock FIR Filter output at sample n is the correlation of the template with the 24
+        symbol-spaced samples ENDING at n. Zero mean makes it blind to DC (carrier offset).
+      ones_taps(): the same comb with all ones: FIR(x) = sum of the 24 samples, FIR(x^2) = their
+        energy; together they give the window's standard deviation for normalising.
+      rrc_taps(): root-raised-cosine (alpha 0.2), the matched filter for DMR's transmit filter,
+        scaled to unity DC gain so the symbol levels stay at +-1 / +-3.
+      """
+      import numpy as np
+      from gnuradio.filter import firdes
+
+      SPS = 10
+      LEVEL = [1.0, 3.0, -1.0, -3.0]                   # dibit 00, 01, 10, 11
+      SYNC_BS, SYNC_MS, SYNC_DM1, SYNC_DM2 = 0x755FD7DF75F7, 0x7F7D5DD57DFD, 0x5D577F7757FF, 0x7DFFD5F55D5F
+
+
+      def _comb(values, sps=SPS):
+          L = 23 * sps + 1
+          h = np.zeros(L)
+          for i, v in enumerate(values):
+              h[(L - 1) - i * sps] = v
+          return h.tolist()
+
+
+      def corr_taps(word, sps=SPS):
+          t = np.array([LEVEL[(word >> (46 - 2 * i)) & 3] for i in range(24)])
+          t = t - t.mean()
+          return _comb(t / np.sqrt(np.sum(t * t)), sps)
+
+
+      def ones_taps(sps=SPS):
+          return _comb(np.ones(24), sps)
+
+
+      def rrc_taps(sps=SPS, fs=48000.0):
+          h = firdes.root_raised_cosine(1.0, fs, fs / sps, 0.2, 11 * sps + 1)
+          return [t / sum(h) for t in h]
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1380
+    - 108
+    rotation: 0
+    state: enabled
+- name: pad_in
+  id: pad_source
+  parameters:
+    comment: 'FM discriminator output, 48 kS/s,
+
+      scaled so 648 Hz = 1.0 (symbols +-1 / +-3)'
+    label: disc
+    type: float
+    vlen: '1'
+    num_streams: '1'
+    optional: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 420
+    rotation: 0
+    state: enabled
+- name: rrc
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'STAGE 1  matched filter: RRC alpha 0.2'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: fff
+    decim: '1'
+    taps: taps.rrc_taps(sps)
+    samp_delay: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 180
+    - 404
+    rotation: 0
+    state: enabled
+- name: corr_bs
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'STAGE 1b correlator: BS voice sync
+
+      (a data sync gives the same peak, negative)'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: fff
+    decim: '1'
+    taps: taps.corr_taps(taps.SYNC_BS, sps)
+    samp_delay: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 480
+    - 240
+    rotation: 0
+    state: enabled
+- name: rho_bs
+  id: blocks_divide_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: rho = c / sigma  (-1 .. +1)
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 860
+    - 256
+    rotation: 0
+    state: enabled
+- name: corr_ms
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: MS sync
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: fff
+    decim: '1'
+    taps: taps.corr_taps(taps.SYNC_MS, sps)
+    samp_delay: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 480
+    - 350
+    rotation: 0
+    state: enabled
+- name: rho_ms
+  id: blocks_divide_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 860
+    - 366
+    rotation: 0
+    state: enabled
+- name: corr_dm1
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: DM1 sync
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: fff
+    decim: '1'
+    taps: taps.corr_taps(taps.SYNC_DM1, sps)
+    samp_delay: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 480
+    - 460
+    rotation: 0
+    state: enabled
+- name: rho_dm1
+  id: blocks_divide_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 860
+    - 476
+    rotation: 0
+    state: enabled
+- name: corr_dm2
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: DM2 sync
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: fff
+    decim: '1'
+    taps: taps.corr_taps(taps.SYNC_DM2, sps)
+    samp_delay: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 480
+    - 570
+    rotation: 0
+    state: enabled
+- name: rho_dm2
+  id: blocks_divide_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 860
+    - 586
+    rotation: 0
+    state: enabled
+- name: sum_x
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: sum of the 24 symbol-spaced samples
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: fff
+    decim: '1'
+    taps: taps.ones_taps(sps)
+    samp_delay: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 480
+    - 720
+    rotation: 0
+    state: enabled
+- name: sq_x
+  id: blocks_multiply_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: x^2
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 300
+    - 840
+    rotation: 0
+    state: enabled
+- name: sum_x2
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: sum of their squares
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: fff
+    decim: '1'
+    taps: taps.ones_taps(sps)
+    samp_delay: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 480
+    - 840
+    rotation: 0
+    state: enabled
+- name: sq_s1
+  id: blocks_multiply_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: (sum x)^2
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 800
+    - 720
+    rotation: 0
+    state: enabled
+- name: div24
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: /24
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    const: 1.0/24
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 960
+    - 736
+    rotation: 0
+    state: enabled
+- name: var24
+  id: blocks_sub_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 24 x variance of the window
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    num_inputs: '2'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1120
+    - 800
+    rotation: 0
+    state: enabled
+- name: eps
+  id: blocks_add_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: no 0/0
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    const: 1e-9
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1280
+    - 816
+    rotation: 0
+    state: enabled
+- name: sigma
+  id: blocks_transcendental
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: sigma (window norm)
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    name: sqrt
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1440
+    - 816
+    rotation: 0
+    state: enabled
+- name: framer
+  id: epy_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'STAGE 2  EPB burst framer: peak timing, 30 ms grid,
+
+      gain/DC fit, burst slicing -> messages'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    _source_code: |
+      """
+      DMR Burst Framer -- Embedded Python Block (stage 2 of the DMR Decoder hier block)
+
+      Inputs (all 48 kS/s = 10 samples/symbol, sample-aligned):
+        in0  x      : RRC-filtered discriminator output (symbols at +-1 / +-3 nominal)
+        in1..in4 rho: normalised correlation with the BS, MS, DM1, DM2 voice sync patterns,
+                      computed by the stock correlator bank. rho[n] belongs to the 24-symbol
+                      window that ENDS at sample n (FIR convention); a data sync gives rho = -1.
+      Output:
+        out0        : 8 kHz stream of symbol-centre samples (for a histogram; also the clock
+                      the vocoder stage uses to place its audio)
+        'bursts'    : one message per burst / CACH / event, all in time order:
+                      (dict, f32vector)  dict['type'] = 'burst' | 'cach' | 'reset' | 'tick' | 'progress'
+                      burst: pos, kind ('BS'|'MS'|'DM1'|'DM2'), voice, n (0 = burst with a sync,
+                             1..5 = voice bursts B..F), sf (position of that superframe's burst A),
+                             g, o (gain, DC), vec = 144 normalised symbols (12 CACH + 132 burst)
+                      cach : 12 normalised CACH symbols at a 30 ms grid point
+                      progress: every burst with pos <= dict['pos'] has been sent (the vocoder
+                             uses this to know how far it may play)
+
+      What it does (none of this is a stock block):
+        * peak picking on rho with sub-sample (parabolic) timing
+        * the 30 ms burst grid of a repeater: off-grid syncs are rejected (AMBE payload can look
+          like a sync); the grid is confirmed by two agreeing syncs
+        * gain/DC fit from the sync, refined decision-directed over the burst
+        * voice superframes: bursts B..F carry no sync, so they are cut out 60 ms apart after A;
+          a missed A is recovered at its predicted position if a weak sync is there
+      """
+      import time
+      import numpy as np
+      import pmt
+      from gnuradio import gr
+
+      DIBIT_LEVEL = np.array([1.0, 3.0, -1.0, -3.0])
+      SYNCS = {'BS': 0x755FD7DF75F7, 'MS': 0x7F7D5DD57DFD, 'DM1': 0x5D577F7757FF, 'DM2': 0x7DFFD5F55D5F}
+      KINDS = ('BS', 'MS', 'DM1', 'DM2')
+
+
+      def sync_symbols(word):
+          return np.array([DIBIT_LEVEL[(word >> (46 - 2 * i)) & 3] for i in range(24)])
+
+
+      def level_to_dibit(z):
+          d = np.empty(len(z), dtype=np.uint8)
+          d[z >= 2.0] = 1
+          d[(z >= 0.0) & (z < 2.0)] = 0
+          d[(z < 0.0) & (z >= -2.0)] = 2
+          d[z < -2.0] = 3
+          return d
+
+
+      class blk(gr.decim_block):
+          """DMR Burst Framer: sync peaks -> timed, normalised bursts (messages)"""
+
+          def __init__(self, sps=10, sync_thresh=0.80, rf_hz=0.0, stats_every=10.0, audio_delay=0.4):
+              if (int(sps) * 3) % 5:
+                  raise ValueError('sps must be a multiple of 5 (4800*sps -> 8 kHz)')
+              self.adec = int(sps) * 3 // 5
+              gr.decim_block.__init__(self, name='DMR Burst Framer', in_sig=[np.float32] * 5,
+                                      out_sig=[np.float32], decim=self.adec)
+              self.message_port_register_out(pmt.intern('bursts'))
+              self.sps = int(sps)
+              self.L = 23 * self.sps + 1                  # samples spanned by a 24-symbol sync
+              self.thr = float(sync_thresh)
+              self.rf_hz = float(rf_hz)
+              self._rf_seen = self.rf_hz
+              self.stats_every = float(stats_every)
+              self.tsyms = {k: sync_symbols(v) for k, v in SYNCS.items()}
+              self.x = np.zeros(0)
+              self.r = np.zeros((4, 0))
+              self.base = 0                               # absolute sample index of x[0]
+              self.scan = 0                               # next rho index to examine
+              self.jobs = []
+              self.done = {k: [] for k in KINDS}
+              self.phase = 0.0
+              self.t_tick = time.time()
+              self.n_offgrid = 0
+              try:                                        # keep chunks well below the audio delay
+                  self.set_max_noutput_items(max(80, int(8000 * float(audio_delay) * 0.25)))
+              except Exception:
+                  pass
+              self._reset()
+
+          def _reset(self):
+              self.jobs = []
+              self.fit = None
+              self.last_bs = None
+              self.grid = None
+              self.grid_ok, self.cand = False, []
+              self.n_offgrid = 0
+
+          # ---------------------------------------------------------------- messages
+          def _pub(self, meta, vec=None):
+              d = pmt.make_dict()
+              for k, v in meta.items():
+                  if isinstance(v, bool):
+                      pv = pmt.from_bool(v)
+                  elif isinstance(v, (int, np.integer)):
+                      pv = pmt.from_long(int(v))
+                  elif isinstance(v, (float, np.floating)):
+                      pv = pmt.from_double(float(v))
+                  else:
+                      pv = pmt.intern(str(v))
+                  d = pmt.dict_add(d, pmt.intern(k), pv)
+              body = pmt.init_f32vector(len(vec), [float(t) for t in vec]) if vec is not None else pmt.PMT_NIL
+              self.message_port_pub(pmt.intern('bursts'), pmt.cons(d, body))
+
+          # ---------------------------------------------------------------- sampling
+          def _syms(self, pos, s0, cnt):
+              """symbols at absolute position pos + sps*(s0 .. s0+cnt-1), Catmull-Rom interpolation"""
+              t = pos - self.base + self.sps * (s0 + np.arange(cnt))
+              i = np.floor(t).astype(int)
+              f = t - i
+              if i[0] - 1 < 0 or i[-1] + 2 >= len(self.x):
+                  return None
+              b = self.x
+              ym1, y0, y1, y2 = b[i - 1], b[i], b[i + 1], b[i + 2]
+              return y0 + 0.5 * f * (y1 - ym1 + f * (2 * ym1 - 5 * y0 + 4 * y1 - y2 + f * (3 * (y0 - y1) + y2 - ym1)))
+
+          def _fit(self, y, kind, voice):
+              """least-squares gain/DC from the 24 known sync symbols, then over the whole burst"""
+              t = self.tsyms[kind] * (1.0 if voice else -1.0)
+              A = np.column_stack([t, np.ones(24)])
+              g, o = np.linalg.lstsq(A, y[66:90], rcond=None)[0]
+              if abs(g) < 1e-6:
+                  return None
+              yb = y[12:144]
+              lev = DIBIT_LEVEL[level_to_dibit((yb - o) / g)]
+              g2, o2 = np.linalg.lstsq(np.column_stack([lev, np.ones(len(lev))]), yb, rcond=None)[0]
+              return (g2, o2) if abs(g2) > 0.5 * abs(g) else (g, o)
+
+          # ---------------------------------------------------------------- burst grid
+          def _on_grid(self, p, q):
+              k = (p - q) / (144.0 * self.sps)
+              return abs(k - round(k)) <= 0.05
+
+          def _grid_check(self, pos):
+              sps = self.sps
+              if self.grid_ok and self.last_bs is not None and pos - self.last_bs < 0.5 * 4800 * sps:
+                  if self._on_grid(pos, self.last_bs):
+                      return True
+                  self.n_offgrid += 1
+                  return False
+              self.grid_ok = False
+              self.cand = [c for c in self.cand if pos - c < 4800 * sps]
+              if any(self._on_grid(pos, c) for c in self.cand):
+                  self.grid_ok, self.cand = True, []
+                  return True
+              self.cand.append(pos)
+              self.n_offgrid += 1
+              return False
+
+          # ---------------------------------------------------------------- peak search on rho
+          def _search(self, end):
+              """rho index n (absolute) -> sync window start a = n - (L-1)"""
+              sps = self.sps
+              h = sps // 2
+              last = end - h - 2                          # need h right-hand neighbours
+              if last < self.scan:
+                  return
+              lo = max(self.scan - h, self.base)
+              seg = self.r[:, lo - self.base:last + h + 1 - self.base]
+              for ki, kind in enumerate(KINDS):
+                  rho = seg[ki]
+                  ar = np.abs(rho)
+                  for k in np.flatnonzero(ar >= self.thr):
+                      n = lo + int(k)
+                      if n < self.scan or n > last:
+                          continue
+                      if ar[k] < ar[max(k - h, 0):k + h + 1].max():
+                          continue
+                      a = n - (self.L - 1)
+                      if any(abs(a - p) <= h for p in self.done[kind]):
+                          continue
+                      d = 0.0
+                      if 0 < k < len(ar) - 1:
+                          den = ar[k - 1] - 2 * ar[k] + ar[k + 1]
+                          if den < 0:
+                              d = float(np.clip(0.5 * (ar[k - 1] - ar[k + 1]) / den, -0.5, 0.5))
+                      self.done[kind].append(a)
+                      self.jobs.append((a + d, kind, bool(rho[k] > 0), 0, None))
+              for kind in KINDS:
+                  self.done[kind] = [p for p in self.done[kind] if p > end - 4 * self.L - 40000]
+              self.scan = last + 1
+
+          # ---------------------------------------------------------------- grid walk (CACH)
+          def _grid_run(self, end):
+              if self.grid is None or self.fit is None:
+                  return
+              g, o = self.fit
+              step = 144 * self.sps
+              while self.grid + 80 * self.sps <= end:
+                  if self.grid - self.last_bs > 34 * step:          # repeater gone (> ~1 s)
+                      self.grid = None
+                      return
+                  y = self._syms(self.grid, -66, 12)
+                  if y is not None:
+                      self._pub({'type': 'cach', 'pos': self.grid}, (y - o) / g)
+                  self.grid += step
+
+          # ---------------------------------------------------------------- work
+          def work(self, input_items, output_items):
+              out = output_items[0]
+              n_out = len(out)
+              n_in = n_out * self.adec
+              sps = self.sps
+              if self.rf_hz != self._rf_seen:            # retuned: tell the stages downstream
+                  self._rf_seen = self.rf_hz
+                  self._reset()
+                  self._pub({'type': 'reset', 'rf_hz': self.rf_hz})
+              abs0 = self.base + len(self.x)
+              self.x = np.concatenate([self.x, input_items[0][:n_in].astype(np.float64)])
+              self.r = np.concatenate([self.r, np.array([input_items[k][:n_in] for k in range(1, 5)], dtype=np.float64)],
+                                      axis=1)
+              end = self.base + len(self.x)
+              self._search(end)
+
+              # Process every burst that is complete, in time order, including bursts B..F that a
+              # burst A processed in this same call schedules (they may already be complete too).
+              pending = sorted(self.jobs, key=lambda j: j[0])
+              still = []
+              while pending:
+                  job = pending.pop(0)
+                  pos, kind, voice, n, fit = job
+                  if pos + 80 * sps + 3 > end:
+                      still.append(job)
+                      continue
+                  if n == 6:                              # predicted next burst A of a call
+                      if any(abs(pos - p) <= sps // 2 + 1 for p in self.done[kind]):
+                          continue                        # the search found it: that job handles it
+                      y = self._syms(pos, -66, 144)
+                      if y is None:
+                          continue
+                      t = self.tsyms[kind] - self.tsyms[kind].mean()
+                      yc = y[66:90] - y[66:90].mean()
+                      if np.dot(yc, t) / (np.linalg.norm(yc) * np.linalg.norm(t) + 1e-12) < 0.5:
+                          continue                        # no voice sync there: the call has ended
+                      n = 0
+                  if kind != 'BS' and n == 0 and self.last_bs is not None and abs(pos - self.last_bs) < 2 * 4800 * sps:
+                      continue                            # repeater locked: MS/DM syncs here are false hits
+                  if kind == 'BS' and n == 0 and not self._grid_check(pos):
+                      continue
+                  y = self._syms(pos, -66, 144)
+                  if y is None:
+                      continue
+                  if n == 0:
+                      gf = self._fit(y, kind, voice)
+                      if gf is None:
+                          continue
+                      g, o = gf
+                      self.fit = (g, o)
+                      self.phase = pos % sps
+                      if kind == 'BS':
+                          step = 144 * sps
+                          if self.grid is None or not self._on_grid(pos, self.grid):
+                              self.grid = pos
+                          else:
+                              self.grid = pos + step * round((self.grid - pos) / step)
+                          self.last_bs = pos
+                      sf = pos
+                      if voice:
+                          for k in range(1, 7):
+                              pending.append((pos + 288 * sps * k, kind, True, k, (g, o, pos)))
+                          pending.sort(key=lambda j: j[0])
+                  else:
+                      g, o, sf = fit
+                  self._pub({'type': 'burst', 'pos': pos, 'kind': kind, 'voice': bool(voice), 'n': n, 'sf': sf,
+                             'g': g, 'o': o, 'offgrid': self.n_offgrid}, (y - o) / g)
+              self.jobs = still
+              self._grid_run(end)
+
+              # symbol display / clock output (held at 8 kHz), timing of the last sync
+              ph = int(round(self.phase - abs0)) % sps
+              t = np.arange(n_out) * self.adec
+              idx = ph + np.floor((t - ph) / sps).astype(int) * sps
+              idx[idx < 0] = ph
+              xin = input_items[0]
+              out[:] = xin[np.minimum(idx, n_in - 1)]
+
+              keep = min([self.scan - self.L - sps] + [j[0] - self.L for j in self.jobs] +
+                         ([self.grid] if self.grid is not None else []))
+              cut = int(keep - 70 * sps) - self.base
+              if cut > 0:
+                  self.x = self.x[cut:]
+                  self.r = self.r[:, cut:]
+                  self.base += cut
+
+              self._pub({'type': 'progress', 'pos': float(end - 80 * sps - 4)})
+              now = time.time()
+              if self.stats_every > 0 and now - self.t_tick >= self.stats_every:
+                  self.t_tick = now
+                  self._pub({'type': 'tick', 'offgrid': self.n_offgrid, 'rf_hz': self.rf_hz})
+              return n_out
+    sps: sps
+    sync_thresh: sync_thresh
+    rf_hz: rf_hz
+    stats_every: stats_every
+    audio_delay: audio_delay
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1100
+    - 340
+    rotation: 0
+    state: enabled
+    _io_cache: '(''DMR Burst Framer'', ''blk'', [(''sps'', ''10''), (''sync_thresh'', ''0.8''), (''rf_hz'', ''0.0''), (''stats_every'', ''10.0''), (''audio_delay'', ''0.4'')], [(''0'', ''float'', 1), (''1'', ''float'', 1), (''2'', ''float'', 1), (''3'', ''float'', 1), (''4'', ''float'', 1)], [(''0'', ''float'', 1), (''bursts'', ''message'', 1)], ''DMR Burst Framer: sync peaks -> timed, normalised bursts (messages)'', [''audio_delay'', ''rf_hz'', ''sps'', ''stats_every'', ''sync_thresh''])'
+- name: l2
+  id: epy_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'STAGE 3  EPB Layer 2: CACH, slot type, FEC,
+
+      CSBK/LC parsing, status panel'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    _source_code: |
+      """
+      DMR Layer 2 decoder -- Embedded Python Block (stage 3 of the DMR Decoder hier block)
+
+      Input  'bursts' : messages from the Burst Framer (normalised symbols of each burst / CACH)
+             'vstats' : status reports from the AMBE+2 Vocoder (shown in the panel)
+      Output 'text'   : one u8vector PDU per printed line (lines are printed too)
+             'voice'  : one message per voice burst: (dict slot/pos/enc, f32vector of 216 soft bits)
+
+      What it does: CACH (TACT -> time slot, Short LC -> system identity), slot type (Golay 20,8),
+      BPTC(196,96) with soft turbo decoding, CRC/RS(12,9) checks, CSBK / MBC parsing (Tier III
+      ALOHA, C_BCAST, grants), voice LC header / terminator, EMB (QR 16,7) + embedded LC,
+      encryption flags, and the periodic channel status panel (printed on the framer's 'tick').
+
+      Code tables were extracted from MMDVMHost (G4KLX) encoder classes; Tier III field layouts
+      follow ETSI TS 102 361-4 as implemented in DSD-FME.
+      """
+      import sys
+      import time
+      import threading
+      import numpy as np
+      import pmt
+      from gnuradio import gr
+
+      DIBIT_LEVEL = np.array([1.0, 3.0, -1.0, -3.0])        # dibit 00,01,10,11 -> +1,+3,-1,-3
+
+      # voice syncs; the matching data sync is the sign-inverted pattern
+      SYNCS = {'BS': 0x755FD7DF75F7, 'MS': 0x7F7D5DD57DFD, 'DM1': 0x5D577F7757FF, 'DM2': 0x7DFFD5F55D5F}
+      P25_FS = 0x5575F5FF77FF
+
+      GOLAY2087_ROWS = (0x803DA, 0x40D99, 0x206CD, 0x10367, 0x08DC6, 0x04A97, 0x0293E, 0x018EB)
+      QR1676_ROWS = (0x804F, 0x411E, 0x21B7, 0x11E2, 0x09C9, 0x04E5, 0x0273)
+      HAM15113_ROWS = (0x4009, 0x200D, 0x100F, 0x080E, 0x0407, 0x020A, 0x0105, 0x008B, 0x004C, 0x0026, 0x0013)
+      HAM1393_ROWS = (0x100F, 0x080E, 0x0407, 0x020A, 0x0105, 0x008B, 0x004C, 0x0026, 0x0013)
+      HAM16114_ROWS = (0x8013, 0x401A, 0x201F, 0x101C, 0x080E, 0x0415, 0x020B, 0x0116, 0x0099, 0x004D, 0x0027)
+      HAM17123_ROWS = (0x1001B, 0x0801F, 0x0401D, 0x0201C, 0x0100E, 0x00807, 0x00411, 0x0021A, 0x0010D,
+                       0x00094, 0x0004A, 0x00025)
+      TACT_ROWS = (0b1000101, 0b0100111, 0b0010110, 0b0001011)     # AT TC LS1 LS0 | H0 H1 H2
+      CACH_TACT_POS = (0, 4, 8, 12, 14, 18, 22)
+      CACH_PAYLOAD_POS = (1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 15, 16, 17, 19, 20, 21, 23)
+
+      DT_NAME = {0: 'PI HDR', 1: 'VOICE HDR', 2: 'TERMINATOR', 3: 'CSBK', 4: 'MBC HDR', 5: 'MBC CONT',
+                 6: 'DATA HDR', 7: 'DATA 1/2', 8: 'DATA 3/4', 9: 'IDLE', 10: 'DATA 1/1'}
+      CRC_MASK = {0: 0x6969, 3: 0xA5A5, 4: 0xAAAA, 6: 0xCCCC}
+      RS_MASK = {1: 0x969696, 2: 0x999999}
+      FID_NAME = {0x00: 'std', 0x04: 'Flyde', 0x06: 'Trident', 0x08: 'Hytera', 0x10: 'Motorola',
+                  0x58: 'Tait', 0x68: 'Hytera'}
+      CSBKO_NAME = {0x04: 'UU_V_Req', 0x05: 'UU_Ans_Rsp', 0x07: 'CT_CSBK', 0x19: 'C_ALOHA', 0x1A: 'C_UDT_HEAD',
+                    0x1C: 'C_AHOY', 0x1E: 'C_ACKVIT', 0x1F: 'C_RAND', 0x20: 'C_ACKD', 0x21: 'C_ACKU',
+                    0x22: 'P_ACKD', 0x23: 'P_ACKU', 0x24: 'RADIO_CHECK', 0x26: 'NACK_RSP', 0x27: 'CALL_EMERGENCY',
+                    0x28: 'C_BCAST', 0x29: 'C_MAINT', 0x2A: 'P_MAINT', 0x2E: 'P_CLEAR', 0x2F: 'P_PROTECT',
+                    0x30: 'PV_GRANT', 0x31: 'TV_GRANT', 0x32: 'BTV_GRANT', 0x33: 'PD_GRANT', 0x34: 'TD_GRANT',
+                    0x35: 'PV_GRANT_DX', 0x36: 'PD_GRANT_DX', 0x37: 'PD_GRANT_MI', 0x38: 'BS_DWN_ACT', 0x39: 'C_MOVE',
+                    0x3D: 'PREAMBLE'}
+      # ETSI reserved "gateway" addresses (TS 102 361-4), names as used by DSD-FME
+      GW_NAME = {0xFFFEC0: 'PSTNI', 0xFFFEC1: 'PABXI', 0xFFFEC2: 'LINEI', 0xFFFEC3: 'IPI', 0xFFFEC4: 'SUPLI',
+                 0xFFFEC5: 'SDMI(short-data gw)', 0xFFFEC6: 'REGI(registration gw)', 0xFFFEC7: 'MSI',
+                 0xFFFEC9: 'DIVERTI', 0xFFFECA: 'TSI', 0xFFFECB: 'DISPATI', 0xFFFECC: 'STUNI', 0xFFFECD: 'AUTHI',
+                 0xFFFECE: 'GPI', 0xFFFECF: 'KILLI', 0xFFFED0: 'PSTNDI', 0xFFFED1: 'PABXDI', 0xFFFED2: 'LINEDI',
+                 0xFFFED3: 'DISPATDI', 0xFFFED4: 'ALLMSI', 0xFFFED5: 'IPDI', 0xFFFED6: 'DGNAI', 0xFFFED7: 'TATTSI',
+                 0xFFFFFD: 'ALLMSIDL', 0xFFFFFE: 'ALLMSIDZ', 0xFFFFFF: 'ALLMSID'}
+      AHOY_KIND = {0: 'voice call', 1: 'voice call', 2: 'packet data', 3: 'packet data', 4: 'short data (UDT)',
+                   5: 'short data (UDT)', 6: 'short-data polling', 7: 'status', 8: 'call diversion', 9: 'call answer',
+                   10: 'duplex voice', 11: 'duplex data', 13: 'stun/revive/kill/auth', 14: 'registration/authentication',
+                   15: 'cancel call'}
+
+
+      def addr(a):
+          """radio ID, or the name of a reserved system address"""
+          if a in GW_NAME:
+              return GW_NAME[a]
+          if a >= 0xFFFEC0:
+              return 'sys-%06X' % a
+          return str(a)
+      DPF_NAME = {0: 'UDT', 1: 'response', 2: 'unconfirmed', 3: 'confirmed', 13: 'short defined',
+                  14: 'short raw', 15: 'proprietary'}
+      ACT_NAME = {0: 'idle', 2: 'grp CSBK', 3: 'ind CSBK', 8: 'grp voice', 9: 'ind voice', 10: 'ind data',
+                  11: 'grp data', 12: 'grp EMERG', 13: 'ind EMERG'}
+
+
+      def _fs_syms(fs):
+          return np.array([DIBIT_LEVEL[(fs >> (46 - 2 * i)) & 3] for i in range(24)])
+
+
+      def level_to_dibit(z):
+          d = np.empty(len(z), dtype=np.uint8)
+          d[z >= 2.0] = 1
+          d[(z >= 0.0) & (z < 2.0)] = 0
+          d[(z < 0.0) & (z >= -2.0)] = 2
+          d[z < -2.0] = 3
+          return d
+
+
+      def dibits_to_bits(d):
+          out = np.empty(2 * len(d), dtype=np.uint8)
+          out[0::2] = (d >> 1) & 1
+          out[1::2] = d & 1
+          return out
+
+
+      def syms_to_llr(z):
+          """soft bits (positive -> 1) from normalised 4-level symbols"""
+          out = np.empty(2 * len(z))
+          out[0::2] = -z
+          out[1::2] = np.abs(z) - 2.0
+          return out
+
+
+      def bits_to_int(bits):
+          v = 0
+          for b in bits:
+              v = (v << 1) | int(b)
+          return v
+
+
+      def int_bits(v, n):
+          return [(v >> (n - 1 - i)) & 1 for i in range(n)]
+
+
+      class SoftCode(object):
+          """ML decoder of a short systematic block code (soft bits)."""
+
+          def __init__(self, rows, k, n):
+              self.k, self.n = k, n
+              cw = np.zeros(1 << k, dtype=np.int64)
+              data = np.arange(1 << k)
+              for i, r in enumerate(rows):
+                  cw ^= ((data >> (k - 1 - i)) & 1) * r
+              self.cw = cw
+              sh = np.arange(n - 1, -1, -1)
+              self.B = ((cw[:, None] >> sh[None, :]) & 1).astype(np.float32)
+              self.S = 2.0 * self.B - 1.0
+
+          def decode(self, llr):
+              """returns (data, hard bit errors vs. chosen codeword)"""
+              i = int(np.argmax(self.B @ np.asarray(llr, np.float32)))
+              hard = (np.asarray(llr) > 0).astype(np.int64)
+              return i, int(np.sum(hard != self.B[i]))
+
+
+      class HardHamming(object):
+          """single-error correcting systematic code from generator rows (data first)"""
+
+          def __init__(self, rows, k, n):
+              self.k, self.n, self.rows = k, n, rows
+              self.np_ = n - k
+              self.par = [r & ((1 << self.np_) - 1) for r in rows]
+              self.syn = {}
+              for pos in range(n):                       # bit position 0 = first (MSB)
+                  if pos < k:
+                      s = self.par[pos]
+                  else:
+                      s = 1 << (n - 1 - pos)
+                  self.syn[s] = pos
+
+          def parity(self, bits):
+              p = 0
+              for i in range(self.k):
+                  if bits[i]:
+                      p ^= self.par[i]
+              return p
+
+          def correct(self, bits):
+              """bits: list (modified in place). returns 0 ok, 1 corrected, -1 fail"""
+              rp = 0
+              for i in range(self.k, self.n):
+                  rp = (rp << 1) | bits[i]
+              s = self.parity(bits) ^ rp
+              if s == 0:
+                  return 0
+              pos = self.syn.get(s)
+              if pos is None:
+                  return -1
+              bits[pos] ^= 1
+              return 1
+
+
+      HAM15 = HardHamming(HAM15113_ROWS, 11, 15)
+      HAM13 = HardHamming(HAM1393_ROWS, 9, 13)
+      HAM16 = HardHamming(HAM16114_ROWS, 11, 16)
+      HAM17 = HardHamming(HAM17123_ROWS, 12, 17)
+      HAM15S = SoftCode(HAM15113_ROWS, 11, 15)
+      HAM13S = SoftCode(HAM1393_ROWS, 9, 13)
+      HAM16S = SoftCode(HAM16114_ROWS, 11, 16)
+      SPC8S = SoftCode(tuple((0x80 >> i) | 1 for i in range(7)), 7, 8)
+      HAM17S = SoftCode(HAM17123_ROWS, 12, 17)
+      SLOTTYPE = SoftCode(GOLAY2087_ROWS, 8, 20)
+      EMBCODE = SoftCode(QR1676_ROWS, 7, 16)
+      TACT = SoftCode(TACT_ROWS, 4, 7)
+
+
+      def _softout(code, X, K=24, beta=2.0):
+          """max-log soft output of a short block code for a batch of llr vectors X (m x n),
+          restricted to the K best codewords per vector (Chase/Pyndiah style). Bits with no
+          competitor among them get +-beta*|best metric gap| style saturation."""
+          corr = X @ code.S.T                               # (m x 2^k)
+          K = min(K, corr.shape[1])
+          idx = np.argpartition(-corr, K - 1, axis=1)[:, :K]
+          top = np.take_along_axis(corr, idx, axis=1)       # (m x K)
+          bits = code.B[idx]                                # (m x K x n)
+          big = top[:, :, None]
+          m1 = np.where(bits > 0, big, -np.inf).max(axis=1)
+          m0 = np.where(bits > 0, -np.inf, big).max(axis=1)
+          out = 0.5 * (m1 - m0)
+          best = bits[np.arange(len(X)), np.argmax(top, axis=1)]
+          sat = beta * (2.0 * best - 1.0) * (np.abs(X).mean(axis=1, keepdims=True) + 1e-9)
+          return np.where(np.isfinite(out), out, sat)
+
+
+      def tpc_decode(ch, row_code, nrows, col_code, iters=4, alpha=0.5):
+          """iterative (turbo) product-code decoding, max-log. ch: (R x C) channel llrs,
+          rows [0:nrows] carry row_code, every column carries col_code. Returns hard bits."""
+          ext_r = np.zeros_like(ch)
+          ext_c = np.zeros_like(ch)
+          for _ in range(iters):
+              inp = ch + alpha * ext_c
+              ext_r[:nrows] = _softout(row_code, inp[:nrows]) - inp[:nrows]
+              inp = ch + alpha * ext_r
+              ext_c = (_softout(col_code, inp.T) - inp.T).T
+          return (ch + ext_r + ext_c > 0).astype(int)
+
+
+      def _bptc_hard(d):
+          for _ in range(5):
+              fixing = False
+              for c in range(15):
+                  col = [d[c + 1 + 15 * r] for r in range(13)]
+                  if HAM13.correct(col) == 1:
+                      for r in range(13):
+                          d[c + 1 + 15 * r] = col[r]
+                      fixing = True
+              for r in range(9):
+                  row = d[r * 15 + 1:r * 15 + 16]
+                  if HAM15.correct(row) == 1:
+                      d[r * 15 + 1:r * 15 + 16] = row
+                      fixing = True
+              if not fixing:
+                  break
+          for r in range(9):
+              if HAM15.correct(d[r * 15 + 1:r * 15 + 16]) != 0:
+                  return False
+          for c in range(15):
+              if HAM13.correct([d[c + 1 + 15 * r] for r in range(13)]) != 0:
+                  return False
+          return True
+
+
+      _BPTC_IDX = np.array([(a * 181) % 196 for a in range(196)])
+
+
+      def bptc196_decode(llr196):
+          """llr196: soft bits in received (interleaved) order, positive -> 1.
+          Soft turbo decoding of the 13x15 product code, then a hard clean-up / check.
+          Returns 96 data bits or None."""
+          L = np.asarray(llr196, dtype=np.float64)[_BPTC_IDX]
+          hard = tpc_decode(L[1:].reshape(13, 15), HAM15S, 9, HAM13S)
+          d = [0] + [int(v) for v in hard.reshape(-1)]
+          if not _bptc_hard(d):
+              d = [0] + [int(v) for v in (L[1:] > 0)]      # fall back to plain hard decoding
+              if not _bptc_hard(d):
+                  return None
+          out = d[4:12]
+          for r in range(1, 9):
+              out += d[r * 15 + 1:r * 15 + 12]
+          return out
+
+
+      def crc_ccitt_dmr(bytes10):
+          """CRC-CCITT as in MMDVMHost CCRC::addCCITT162 (poly 0x1021, init 0, inverted)"""
+          crc = 0
+          for b in bytes10:
+              crc ^= b << 8
+              for _ in range(8):
+                  crc = ((crc << 1) ^ 0x1021) if crc & 0x8000 else (crc << 1)
+                  crc &= 0xFFFF
+          return crc ^ 0xFFFF
+
+
+      def crc8_slc(bits28):
+          """CRC-8 poly x^8+x^2+x+1, init 0, over the 28 Short LC bits"""
+          reg = 0
+          for b in bits28:
+              fb = ((reg >> 7) & 1) ^ b
+              reg = (reg << 1) & 0xFF
+              if fb:
+                  reg ^= 0x07
+          return reg
+
+
+      # ---------------------------------------------------------------- RS(12,9) GF(256), 0x11D
+      _E = [0] * 512
+      _L = [0] * 256
+      _x = 1
+      for _i in range(255):
+          _E[_i] = _x
+          _L[_x] = _i
+          _x <<= 1
+          if _x & 0x100:
+              _x ^= 0x11D
+      for _i in range(255, 512):
+          _E[_i] = _E[_i - 255]
+
+
+      def _gm(a, b):
+          return 0 if (a == 0 or b == 0) else _E[_L[a] + _L[b]]
+
+
+      RS_POLY = (64, 56, 14, 1)
+
+
+      def rs129_parity(msg9):
+          par = [0, 0, 0]
+          for i in range(9):
+              db = msg9[i] ^ par[2]
+              par[2] = par[1] ^ _gm(RS_POLY[2], db)
+              par[1] = par[0] ^ _gm(RS_POLY[1], db)
+              par[0] = _gm(RS_POLY[0], db)
+          return [par[2], par[1], par[0]]
+
+
+      def rs129_check(b12, mask):
+          """returns corrected 9 data bytes or None (corrects one data byte)"""
+          rx = [b12[9] ^ ((mask >> 16) & 0xFF), b12[10] ^ ((mask >> 8) & 0xFF), b12[11] ^ (mask & 0xFF)]
+          msg = list(b12[:9])
+          p = rs129_parity(msg)
+          if p == rx:
+              return msg
+          diff = sum(1 for i in range(3) if p[i] != rx[i])
+          if diff == 1:                               # error in one parity byte
+              return msg
+          for i in range(9):
+              orig = msg[i]
+              for v in range(256):
+                  if v == orig:
+                      continue
+                  msg[i] = v
+                  if rs129_parity(msg) == rx:
+                      return msg
+              msg[i] = orig
+          return None
+
+
+      def bits_to_bytes(bits):
+          return [bits_to_int(bits[i:i + 8]) for i in range(0, len(bits) - 7, 8)]
+
+
+      # ---------------------------------------------------------------- formatting
+      def fmt_lc(b):
+          flco = b[0] & 0x3F
+          fid = b[1]
+          so = b[2]
+          dst = (b[3] << 16) | (b[4] << 8) | b[5]
+          src = (b[6] << 16) | (b[7] << 8) | b[8]
+          flags = ('' if not so & 0x80 else ' EMERGENCY') + ('' if not so & 0x40 else ' ENCRYPTED')
+          pf = ' (protected)' if b[0] & 0x80 else ''
+          if flco == 0x00:
+              return 'Group TG=%d SRC=%d%s%s' % (dst, src, flags, pf)
+          if flco == 0x03:
+              return 'Private TGT=%d SRC=%d%s%s' % (dst, src, flags, pf)
+          return 'LC FLCO=%02X FID=%02X(%s) %s' % (flco, fid, FID_NAME.get(fid, '?'),
+                                                    ''.join('%02X' % x for x in b))
+
+
+      def _field(v, start, n, total=96):
+          return (v >> (total - start - n)) & ((1 << n) - 1)
+
+
+      PAR_NAME = {0: 'res', 1: 'A', 2: 'B', 3: 'AB'}
+      ANN_NAME = {0: 'Ann_WD_TSCC', 1: 'CallTimer_Parms', 2: 'Vote_Now', 3: 'Local_Time', 4: 'MassReg',
+                  5: 'Chan_Freq', 6: 'Adjacent_Site', 7: 'Gen_Site_Params'}
+
+
+      def sys_ident(sc14, par=None):
+          """14-bit Tier III system identity code -> dict + text. Net/site are shown
+          +1 (ETSI user numbering, as DSD-FME does); raw field values in brackets."""
+          model = (sc14 >> 12) & 3
+          nb, sb = {0: (9, 3), 1: (7, 5), 2: (4, 8), 3: (2, 10)}[model]
+          net = (sc14 >> sb) & ((1 << nb) - 1)
+          site = sc14 & ((1 << sb) - 1)
+          d = {'syscode': sc14, 'model': ['tiny', 'small', 'large', 'huge'][model], 'net': net + 1, 'site': site + 1}
+          txt = 'syscode %04X (%s) Net %d Site %d' % (sc14, d['model'], net + 1, site + 1)
+          if par is not None:
+              d['par'] = PAR_NAME[par]
+              txt += ' Cat %s' % PAR_NAME[par]
+          return d, txt
+
+
+      def abs_channel(cont):
+          """MBC continuation with CDEFTYPE 0 (absolute channel parameters) -> (lpcn, rx_hz, tx_hz)"""
+          c = int.from_bytes(bytes(cont[:12]), 'big')
+          if _field(c, 16, 4) != 0:
+              return None
+          lpcn = _field(c, 22, 12)
+          tx = _field(c, 34, 10) * 1000000 + _field(c, 44, 13) * 125
+          rx = _field(c, 57, 10) * 1000000 + _field(c, 67, 13) * 125
+          return lpcn, rx, tx
+
+
+      def parse_csbk(b, cont=None):
+          """b: 12 CSBK / MBC-header bytes, cont: first MBC continuation (12 bytes) or None.
+          Returns (text, info dict). Field positions follow ETSI TS 102 361-4 as implemented
+          in DSD-FME (dmr_csbk.c); the C_BCAST layout was confirmed on a real Tier III site."""
+          v = int.from_bytes(bytes(b[:12]), 'big')
+          op = b[0] & 0x3F
+          fid = b[1]
+          info = {'op': op, 'fid': fid}
+          std = fid == 0x00 or (fid == 0x58 and op == 0x28)          # Tait sends C_BCAST with its own FID
+          fids = '' if fid == 0 else ' FID=%02X(%s)' % (fid, FID_NAME.get(fid, '?'))
+          name = CSBKO_NAME.get(op, 'OP_%02X' % op) if std else 'OP_%02X' % op
+          tgt = _field(v, 32, 24)
+          src = _field(v, 56, 24)
+          if std and op == 0x19:                                      # C_ALOHA
+              d, st = sys_ident(_field(v, 40, 14), _field(v, 54, 2))
+              info.update(kind='aloha', site=d, reg=_field(v, 35, 1))
+              return ('C_ALOHA %s reg=%d mask=%d nrandwait=%d backoff=%d%s' % (
+                  st, _field(v, 35, 1), _field(v, 24, 5), _field(v, 31, 4), _field(v, 36, 4), fids), info)
+          if std and op == 0x28:                                      # C_BCAST
+              at = _field(v, 16, 5)
+              p1 = _field(v, 21, 14)
+              p2 = _field(v, 56, 24)
+              d, st = sys_ident(_field(v, 40, 14), _field(v, 54, 2))
+              info.update(kind='bcast', ann=at, site=d, reg=_field(v, 35, 1))
+              head = 'C_BCAST %s' % ANN_NAME.get(at, 'type %d' % at)
+              lpcn = p2 & 0xFFF
+              ch = abs_channel(cont) if cont is not None else None
+              if at == 0:
+                  c1, c2 = (p2 >> 12) & 0xFFF, p2 & 0xFFF
+                  txt = '%s: TSCC LPCN %d (CC%d, %s), LPCN %d (CC%d, %s)' % (
+                      head, c1, (p1 >> 6) & 0xF, 'remove' if p1 & 2 else 'add',
+                      c2, (p1 >> 2) & 0xF, 'remove' if p1 & 1 else 'add')
+                  info['tscc'] = [c1, c2]
+              elif at in (2, 6):
+                  nd, nst = sys_ident(p1)
+                  ava, con = (p2 >> 23) & 1, (p2 >> 22) & 1
+                  txt = '%s: %s, LPCN %s%s' % (head, nst, 'absolute' if lpcn == 0xFFF else lpcn,
+                                               ('' if not ava else (' (online)' if con else ' (offline)')))
+                  info.update(neigh=nd, lpcn=lpcn)
+                  if ch:
+                      info['chan'] = ch
+                      txt += ' -> RX %.5f / TX %.5f MHz' % (ch[1] / 1e6, ch[2] / 1e6)
+              elif at == 5:
+                  txt = '%s: LPCN %d' % (head, lpcn)
+                  info['lpcn'] = lpcn
+                  if ch:
+                      info['chan'] = (lpcn,) + ch[1:]
+                      txt += ' = RX %.5f MHz / TX %.5f MHz' % (ch[1] / 1e6, ch[2] / 1e6)
+                  else:
+                      txt += ' (frequency block missing)'
+              elif at == 3:
+                  txt = '%s: %02d:%02d:%02d UTC, day %d month %d, offset %s%dh' % (
+                      head, (p2 >> 19) & 0x1F, (p2 >> 13) & 0x3F, (p2 >> 7) & 0x3F, (p1 >> 9) & 0x1F,
+                      (p1 >> 5) & 0xF, '-' if p1 & 1 else '+', (p1 >> 1) & 0xF)
+              elif at == 4:
+                  txt = '%s: reg window %d, aloha mask %d, target %d' % (head, (p1 >> 5) & 0xF, p1 & 0x1F, p2)
+              elif at == 7:
+                  txt = '%s: hibernate=%d tg-on-reg=%d' % (head, (p2 >> 22) & 1, (p2 >> 7) & 1)
+              else:
+                  txt = '%s: parms1=%04X parms2=%06X' % (head, p1, p2)
+              return txt + ' [%s reg=%d]%s' % (st, _field(v, 35, 1), fids), info
+          if std and 0x30 <= op <= 0x38 and op != 0x38:              # channel grants
+              lpcn = _field(v, 16, 12)
+              ts = _field(v, 28, 1) + 1
+              emerg = _field(v, 30, 1)
+              info.update(kind='grant', lpcn=lpcn, ts=ts, tgt=tgt, src=src, group=op in (0x31, 0x32, 0x34, 0x38))
+              txt = '%s LPCN %s TS%d %s=%d SRC=%d%s' % (name, 'absolute' if lpcn == 0xFFF else lpcn, ts,
+                                                      'TG' if info['group'] else 'TGT', tgt, src,
+                                                      ' EMERGENCY' if emerg else '')
+              if lpcn == 0xFFF and cont is not None:
+                  ch = abs_channel(cont)
+                  if ch:
+                      info['chan'] = ch
+                      txt += ' -> RX %.5f MHz' % (ch[1] / 1e6)
+              return txt + fids, info
+          if std and op == 0x1C:                                      # C_AHOY
+              sk = _field(v, 28, 4)
+              info.update(kind='ahoy', tgt=tgt, src=src)
+              return 'C_AHOY %s %s %s TGT=%s SRC=%s' % (AHOY_KIND.get(sk, 'kind %d' % sk),
+                                                     'grp' if _field(v, 25, 1) else 'ind',
+                                                     '(ambient listening)' if _field(v, 24, 1) else '',
+                                                     addr(tgt), addr(src)), info
+          if std and op in (0x20, 0x21, 0x22, 0x23):                  # acknowledgements
+              info.update(kind='ack', tgt=tgt, src=src)
+              return '%s resp=%02X reason=%02X TGT=%s SRC=%s' % (name, _field(v, 16, 7), _field(v, 23, 8),
+                                                               addr(tgt), addr(src)), info
+          if std and op == 0x3D:
+              info.update(kind='preamble', tgt=tgt, src=src, group=bool(b[2] & 0x40))
+              return 'PREAMBLE %s %s TGT=%d SRC=%d blocks=%d' % (
+                  'data' if b[2] & 0x80 else 'csbk', 'grp' if b[2] & 0x40 else 'ind', tgt, src, b[3]), info
+          if std and op == 0x2E:
+              info.update(kind='clear', tgt=tgt, src=src)
+              return 'P_CLEAR (call cleared) TGT=%d SRC=%d' % (tgt, src), info
+          if std and op == 0x2F:
+              return 'P_PROTECT %s kind=%d TGT=%d SRC=%d' % ('grp' if _field(v, 31, 1) else 'ind',
+                                                           _field(v, 28, 3), tgt, src), info
+          if std and op in (0x04, 0x05, 0x1E, 0x1F, 0x24, 0x26, 0x27, 0x2A, 0x38):
+              info.update(kind='addr', tgt=tgt, src=src)
+              return '%s TGT=%s SRC=%s' % (name, addr(tgt), addr(src)), info
+          if fid == 0x10 and op == 0x3B:
+              return 'CapPlus SYS rest=%d site=%d' % (b[2] & 0x1F, (b[3] >> 3) & 0xF), info
+          return '%s%s %s' % (name, fids, ''.join('%02X' % x for x in b[2:10])), info
+
+
+      def fmt_slc(slco, d):
+          d0, d1, d2 = (d >> 16) & 0xFF, (d >> 8) & 0xFF, d & 0xFF
+          if slco == 0:
+              return None                                   # null message
+          if slco == 1:
+              return 'SLC Activity TS1=%s TS2=%s hash %02X/%02X' % (
+                  ACT_NAME.get(d0 >> 4, '%X' % (d0 >> 4)), ACT_NAME.get(d0 & 0xF, '%X' % (d0 & 0xF)), d1, d2)
+          if slco in (2, 3):
+              kind = 'control ch (C_SYS_Parms)' if slco == 2 else 'payload ch (P_SYS_Parms)'
+              extra = ' reg=%d' % ((d >> 9) & 1) if slco == 2 else ''   # CSC (a counter) left out: it would defeat dedup
+              return 'SLC Tier III %s %s%s' % (kind, sys_ident(d >> 10)[1], extra)
+          if slco in (9, 10):
+              return 'SLC Connect Plus %s net=%d site=%d' % ('control ch' if slco == 10 else 'voice ch',
+                                                            (d0 << 4) | (d1 >> 4), ((d1 & 0xF) << 4) | (d2 >> 4))
+          if slco == 15:
+              return 'SLC Capacity Plus rest channel LCN=%d' % d1
+          return 'SLC SLCO=%d data=%06X' % (slco, d)
+
+
+      # ============================================================================
+      #  GNU Radio block
+      # ============================================================================
+      _PRINT_LOCK = threading.Lock()
+
+
+      def _say(line):
+          with _PRINT_LOCK:
+              sys.stdout.write(line + '\n')
+              sys.stdout.flush()
+
+
+      def _meta(m):
+          """PMT dict -> python dict"""
+          out = {}
+          items = pmt.dict_items(m)
+          for i in range(pmt.length(items)):
+              kv = pmt.nth(i, items)
+              out[pmt.symbol_to_string(pmt.car(kv))] = pmt.to_python(pmt.cdr(kv))
+          return out
+
+
+      class blk(gr.basic_block):
+          """DMR Layer 2: CACH/SLC, slot type, BPTC, CSBK, voice LC, embedded LC -> text, voice frames"""
+
+          def __init__(self, color_code=-1, dedup_s=10.0, show_data=True, rf_hz=0.0, plan_ref_lpcn=0,
+                       plan_ref_hz=0.0, plan_step_hz=12500.0):
+              gr.basic_block.__init__(self, name='DMR Layer 2', in_sig=None, out_sig=None)
+              self.message_port_register_in(pmt.intern('bursts'))
+              self.message_port_register_in(pmt.intern('vstats'))
+              self.message_port_register_out(pmt.intern('text'))
+              self.message_port_register_out(pmt.intern('voice'))
+              self.set_msg_handler(pmt.intern('bursts'), self._on_burst)
+              self.set_msg_handler(pmt.intern('vstats'), self._on_vstats)
+              self.cc_filter = int(color_code)
+              self.dedup_s = float(dedup_s)
+              self.show_data = bool(show_data)
+              self.rf_hz = float(rf_hz)
+              self.plan_ref_lpcn = int(plan_ref_lpcn)
+              self.plan_ref_hz = float(plan_ref_hz)
+              self.plan_step_hz = float(plan_step_hz)
+              self._spc4 = SoftCode((0b1001, 0b0101, 0b0011), 3, 4)
+              self.seen = {}
+              self.voc_report = None
+              self._reset_channel()
+
+          def _reset_channel(self):
+              self.t0 = time.time()
+              self.n = {'bursts': 0, 'bad_slot_type': 0, 'bptc_fail': 0, 'crc_fail': 0, 'voice': 0, 'idle': 0,
+                        'offgrid': 0}
+              self.slc_bits, self.emb, self.mbc = [], {}, {}
+              self.sf_slot = {}                  # superframe (burst A position) -> slot name
+              self.enc = {}
+              self.ccs, self.offs = {}, []
+              self.site, self.chan_kind, self.fids = None, {}, {}
+              self.slot_act, self.neigh, self.calls, self.chmap = {}, {}, {}, {}
+
+          # ---------------------------------------------------------------- output
+          def _emit(self, key, msg, tail=''):
+              now = time.time()
+              if self.dedup_s > 0:
+                  last = self.seen.get(key + msg)
+                  self.seen[key + msg] = now
+                  if last is not None and now - last < self.dedup_s:
+                      return
+                  if len(self.seen) > 5000:
+                      self.seen = {k: v for k, v in self.seen.items() if now - v < self.dedup_s}
+              line = '[DMR %s] %s %s%s' % (time.strftime('%H:%M:%S'), key, msg, tail)
+              _say(line)
+              b = np.frombuffer((line + '\n').encode('ascii', 'replace'), dtype=np.uint8)
+              self.message_port_pub(pmt.intern('text'), pmt.cons(pmt.PMT_NIL, pmt.init_u8vector(len(b), b.tolist())))
+
+          def _voice_out(self, meta):
+              d = pmt.make_dict()
+              for k, v in meta.items():
+                  if isinstance(v, bool):
+                      pv = pmt.from_bool(v)
+                  elif isinstance(v, (int, np.integer)):
+                      pv = pmt.from_long(int(v))
+                  elif isinstance(v, (float, np.floating)):
+                      pv = pmt.from_double(float(v))
+                  else:
+                      pv = pmt.intern(str(v))
+                  d = pmt.dict_add(d, pmt.intern(k), pv)
+              return d
+
+          # ---------------------------------------------------------------- message handlers
+          def _on_vstats(self, msg):
+              self.voc_report = pmt.to_python(msg)
+
+          def _on_burst(self, msg):
+              m = _meta(pmt.car(msg))
+              body = pmt.cdr(msg)
+              z = np.array(pmt.f32vector_elements(body), dtype=np.float64) if pmt.is_f32vector(body) else None
+              typ = m.get('type')
+              if typ == 'reset':
+                  self.rf_hz = float(m.get('rf_hz', self.rf_hz))
+                  self._reset_channel()
+                  _say('[DMR %s] --- retuned to %.5f MHz: channel picture reset ---' % (
+                      time.strftime('%H:%M:%S'), self.rf_hz / 1e6))
+                  self.message_port_pub(pmt.intern('voice'), pmt.cons(self._voice_out({'type': 'reset'}), pmt.PMT_NIL))
+                  return
+              if typ == 'progress':                    # pass on, in order after the voice frames
+                  self.message_port_pub(pmt.intern('voice'),
+                                        pmt.cons(self._voice_out({'type': 'progress', 'pos': float(m['pos'])}), pmt.PMT_NIL))
+                  return
+              if typ == 'tick':
+                  self.n['offgrid'] = int(m.get('offgrid', 0))
+                  _say(self._status(time.time()))
+                  return
+              if typ == 'cach':
+                  r = self._cach(syms_to_llr(z))
+                  if r is not None:
+                      self._slc_feed(r[1], r[2])
+                  else:
+                      self.slc_bits = []
+                  return
+              # ---- a burst: z = 144 normalised symbols (12 CACH + 132 burst)
+              self.n['bursts'] += 1
+              self.n['offgrid'] = int(m.get('offgrid', 0))
+              llr_c = syms_to_llr(z[0:12])
+              llr = syms_to_llr(z[12:144])
+              g, o, kind = m['g'], m['o'], m['kind']
+              self.offs = (self.offs + [(o * 648.0, abs(g) * 1944.0)])[-50:]
+              if int(m['n']) == 0:
+                  slot = self._slot_name(llr_c, kind)
+                  if m['voice']:
+                      self.n['voice'] += 1
+                      self.sf_slot[m['sf']] = slot
+                      if len(self.sf_slot) > 64:
+                          self.sf_slot = dict(list(self.sf_slot.items())[-32:])
+                      self._act(slot, 'voice')
+                      self._voice(llr, slot, m['pos'])
+                  else:
+                      self._data_burst(llr, slot, kind, g, o)
+              else:
+                  slot = self.sf_slot.get(m['sf'], 'TS?')
+                  self._emb_burst(llr, slot)
+                  self._voice(llr, slot, m['pos'])
+
+          # ---------------------------------------------------------------- voice frames -> vocoder
+          def _voice(self, llr, slot, pos):
+              payload = np.concatenate([llr[0:108], llr[156:264]])         # 216 AMBE bits, sync/EMB removed
+              meta = self._voice_out({'type': 'voice', 'slot': slot, 'pos': float(pos), 'enc': bool(self.enc.get(slot))})
+              self.message_port_pub(pmt.intern('voice'),
+                                    pmt.cons(meta, pmt.init_f32vector(216, [float(v) for v in payload])))
+
+          # ---------------------------------------------------------------- CACH
+          @staticmethod
+          def _cach(llr):
+              tact, nerr = TACT.decode(llr[list(CACH_TACT_POS)])
+              if nerr > 1:
+                  return None
+              return (tact >> 2) & 1, tact & 3, [float(llr[p]) for p in CACH_PAYLOAD_POS]
+
+          def _slot_name(self, llr_c, kind):
+              if kind == 'BS':
+                  r = self._cach(llr_c)
+                  return 'TS%d' % (r[0] + 1) if r is not None else 'TS?'
+              return {'DM1': 'DM-TS1', 'DM2': 'DM-TS2'}.get(kind, 'MS')
+
+          def _slc_feed(self, lcss, payload):
+              if lcss == 1:
+                  self.slc_bits = list(payload)
+              elif lcss == 3:
+                  if self.slc_bits and len(self.slc_bits) < 51:
+                      self.slc_bits += payload
+                  else:
+                      self.slc_bits = []
+              elif lcss == 2:
+                  if len(self.slc_bits) == 51:
+                      self.slc_bits += payload
+                      self._slc_decode(self.slc_bits)
+                  self.slc_bits = []
+              else:
+                  self.slc_bits = []
+
+          def _slc_decode(self, raw):
+              L = np.zeros(68)
+              for a in range(67):
+                  L[a] = raw[(a * 4) % 67]
+              L[67] = raw[67]
+              d = [int(v) for v in tpc_decode(L.reshape(4, 17), HAM17S, 3, self._spc4).reshape(-1)]
+              for r in range(3):
+                  if HAM17.correct(d[17 * r:17 * r + 17]) != 0:
+                      return
+              for c in range(17):
+                  if d[51 + c] != (d[c] ^ d[17 + c] ^ d[34 + c]):
+                      return
+              bits = d[0:12] + d[17:29] + d[34:46]
+              if crc8_slc(bits[:28]) != bits_to_int(bits[28:36]):
+                  return
+              slco, dat = bits_to_int(bits[:4]), bits_to_int(bits[4:28])
+              txt = fmt_slc(slco, dat)
+              if txt:
+                  self._emit('CACH', txt)
+              now = time.time()
+              if slco in (2, 3):
+                  if not (self.site and now - self.site[1] < 5):
+                      self.site = (sys_ident(dat >> 10)[1], now, dat >> 10)
+                  self._kind('Tier III ' + ('CONTROL channel (TSCC)' if slco == 2 else 'traffic (payload) channel'))
+              elif slco in (9, 10):
+                  self._kind('Connect Plus ' + ('control' if slco == 10 else 'voice') + ' channel')
+              elif slco == 15:
+                  self._kind('Capacity Plus')
+              elif slco == 1:
+                  a1, a2 = dat >> 20, (dat >> 16) & 0xF
+                  self._act('TS1', 'SLC activity: ' + ACT_NAME.get(a1, '%X' % a1), weak=True)
+                  self._act('TS2', 'SLC activity: ' + ACT_NAME.get(a2, '%X' % a2), weak=True)
+
+          # ---------------------------------------------------------------- data bursts
+          def _data_burst(self, llr, slot, kind, g, o):
+              st, nerr = SLOTTYPE.decode(np.concatenate([llr[98:108], llr[156:166]]))
+              if nerr > 3:
+                  self.n['bad_slot_type'] += 1
+                  return
+              cc, dt = st >> 4, st & 0xF
+              if self.cc_filter >= 0 and cc != self.cc_filter:
+                  return
+              if nerr == 0:
+                  self.ccs[cc] = self.ccs.get(cc, 0) + 1
+              key = '%s CC%d' % (slot, cc)
+              tail = '  (dev=%.0fHz off=%+.0fHz)' % (abs(g) * 1944.0, o * 648.0)
+              self._kind({'BS': 'repeater / base station (BS sync)', 'MS': 'mobile / talk-around (MS sync)'}.get(
+                  kind, 'direct mode (DM sync)'))
+              if dt == 9:
+                  self.n['idle'] += 1
+                  if nerr == 0:
+                      self._act(slot, 'idle')
+                  return
+              if dt in (7, 8, 10, 5) and not self.show_data:
+                  return
+              if dt == 8:
+                  self._emit(key, 'DATA 3/4 block')
+                  return
+              if dt in (11, 12, 13, 14, 15):
+                  self._emit(key, 'slot type %d (reserved)' % dt, tail)
+                  return
+              bits = bptc196_decode(np.concatenate([llr[0:98], llr[166:264]]))
+              if bits is None:
+                  self.n['bptc_fail'] += 1
+                  return
+              b = bits_to_bytes(bits)
+              if dt in RS_MASK:
+                  lc = rs129_check(b, RS_MASK[dt])
+                  if lc is None:
+                      self.n['crc_fail'] += 1
+                      return
+                  txt = fmt_lc(lc)
+                  if dt == 1 and (lc[0] & 0x3F) in (0x00, 0x03):
+                      self.enc[slot] = bool(lc[2] & 0x40)
+                  elif dt == 2:
+                      self.enc[slot] = False
+                  self._emit(key, '%s %s' % ('CALL' if dt == 1 else 'END ', txt), tail)
+                  self._call(slot, txt, 'voice here' if dt == 1 else 'ended')
+                  return
+              if dt == 5:
+                  self._mbc_cont(b, key, tail)
+                  return
+              if dt in CRC_MASK:
+                  crc = (b[10] << 8 | b[11]) ^ CRC_MASK[dt]
+                  if crc_ccitt_dmr(b[:10]) != crc:
+                      self.n['crc_fail'] += 1
+                      return
+                  if dt == 3:
+                      self._csbk(b, None, key, tail)
+                  elif dt == 0:
+                      self._act(slot, 'PI header (encrypted call)')
+                      self.enc[slot] = True
+                      self._emit(key, 'PI HDR ALG=%02X KID=%02X MI=%08X TGT=%d' % (
+                          b[0], b[2], (b[3] << 24) | (b[4] << 16) | (b[5] << 8) | b[6],
+                          (b[7] << 16) | (b[8] << 8) | b[9]), tail)
+                  elif dt == 6:
+                      self._act(slot, 'data')
+                      dpf = b[0] & 0xF
+                      self._emit(key, 'DATA HDR %s %s SAP=%d DST=%d SRC=%d' % (
+                          DPF_NAME.get(dpf, 'DPF%d' % dpf), 'grp' if b[0] & 0x80 else 'ind', b[1] >> 4,
+                          (b[2] << 16) | (b[3] << 8) | b[4], (b[5] << 16) | (b[6] << 8) | b[7]), tail)
+                  elif dt == 4:
+                      self.mbc[key] = [list(b), [], time.time()]
+                  return
+              self._act(slot, DT_NAME.get(dt, 'type %d' % dt).lower())
+              if self.show_data:
+                  self._emit(key, '%s block' % DT_NAME.get(dt, dt))
+
+          # ---------------------------------------------------------------- voice bursts B..F: EMB + embedded LC
+          def _emb_burst(self, llr, slot):
+              e, nerr = EMBCODE.decode(np.concatenate([llr[108:116], llr[148:156]]))
+              if nerr > 2:
+                  self.emb[slot] = []
+                  return
+              cc, lcss = e >> 3, e & 3
+              frag = list(llr[116:148])
+              lst = self.emb.get(slot, [])
+              if lcss == 1:
+                  lst = [frag]
+              elif lcss == 3 and 1 <= len(lst) <= 2:
+                  lst.append(frag)
+              elif lcss == 2 and len(lst) == 3:
+                  lst.append(frag)
+                  self._emb_lc(sum(lst, []), slot, cc)
+                  lst = []
+              else:
+                  lst = []
+              self.emb[slot] = lst
+
+          def _emb_lc(self, raw, slot, cc):
+              L = np.zeros(128)
+              b = 0
+              for a in range(128):
+                  L[b] = raw[a]
+                  b += 16
+                  if b > 127:
+                      b -= 127
+              d = [int(v) for v in tpc_decode(L.reshape(8, 16), HAM16S, 7, SPC8S).reshape(-1)]
+              for r in range(7):
+                  if HAM16.correct(d[16 * r:16 * r + 16]) != 0:
+                      return
+              for c in range(16):
+                  if d[c] ^ d[16 + c] ^ d[32 + c] ^ d[48 + c] ^ d[64 + c] ^ d[80 + c] ^ d[96 + c] ^ d[112 + c]:
+                      return
+              data = d[0:11] + d[16:27] + d[32:42] + d[48:58] + d[64:74] + d[80:90] + d[96:106]
+              crc = (d[42] << 4) | (d[58] << 3) | (d[74] << 2) | (d[90] << 1) | d[106]
+              lc = bits_to_bytes(data[:72])
+              if sum(lc) % 31 != crc:
+                  return
+              txt = fmt_lc(lc)
+              if (lc[0] & 0x3F) in (0x00, 0x03):
+                  self.enc[slot] = bool(lc[2] & 0x40)
+              self._emit('%s CC%d' % (slot, cc), 'CALL %s' % txt)
+              self._call(slot, txt, 'voice here')
+
+          # ---------------------------------------------------------------- control channel
+          def _csbk(self, b, cont, key, tail):
+              txt, info = parse_csbk(b, cont)
+              now = time.time()
+              self.fids[info['fid']] = now
+              k = info.get('kind')
+              slot = key.split()[0]
+              if 'chan' in info and info['chan'][0] not in (0, 0xFFF):
+                  self.chmap[info['chan'][0]] = info['chan'][1:]
+              if k in ('aloha', 'bcast'):
+                  par = {v: kk for kk, v in PAR_NAME.items()}.get(info['site'].get('par'))
+                  self.site = (sys_ident(info['site']['syscode'], par)[1], now, info['site']['syscode'])
+                  self._kind('Tier III CONTROL channel (TSCC)')
+                  self._act(slot, 'control signalling (%s)' % ('C_ALOHA' if k == 'aloha' else 'C_BCAST'))
+                  if 'neigh' in info and info.get('lpcn') not in (None, 0, 0xFFF) and 'chan' not in info \
+                          and self._plan(info['lpcn']):
+                      txt += ' -> %s' % self._freq(info['lpcn'])
+                  if 'neigh' in info:
+                      nd = info['neigh']
+                      self.neigh[nd['syscode']] = ('Net %d Site %d' % (nd['net'], nd['site']), info.get('lpcn'), now,
+                                                   ANN_NAME.get(info['ann'], ''), info.get('chan'))
+              elif k == 'grant':
+                  where = 'granted %s TS%d' % (
+                      ('%.5f MHz' % (info['chan'][1] / 1e6)) if 'chan' in info else self._freq(info['lpcn']), info['ts'])
+                  ltxt = ('Group TG=%d SRC=%d' if info['group'] else 'Private TGT=%d SRC=%d') % (info['tgt'], info['src'])
+                  self._call(slot, ltxt, where)
+                  self._act(slot, 'control signalling (grants)')
+                  if 'chan' not in info and (info['lpcn'] in self.chmap or self._plan(info['lpcn'])):
+                      txt += ' -> %s' % self._freq(info['lpcn'])
+              elif k:
+                  self._act(slot, 'CSBK ' + txt.split()[0])
+              self._emit(key, txt, tail)
+
+          def _mbc_cont(self, b, key, tail):
+              m = self.mbc.get(key)
+              if m is None or time.time() - m[2] > 1.0:
+                  return
+              m[1].append(list(b))
+              if not (b[0] >> 7) & 1 and len(m[1]) < 3:
+                  return
+              del self.mbc[key]
+              bits = []
+              for blk_ in m[1]:
+                  for v in blk_:
+                      bits += int_bits(v, 8)
+              if crc_ccitt_dmr(bits_to_bytes(bits[:-16])) != bits_to_int(bits[-16:]):
+                  self.n['crc_fail'] += 1
+                  return
+              self._csbk(m[0], m[1][0], key, tail)
+
+          # ---------------------------------------------------------------- channel picture
+          def _kind(self, k):
+              self.chan_kind[k] = time.time()
+
+          def _act(self, slot, txt, weak=False):
+              if slot == 'TS?':
+                  return
+              now = time.time()
+              old = self.slot_act.get(slot)
+              if weak and old is not None and now - old[0] < 2.0 and not old[1].startswith('SLC'):
+                  return
+              if txt == 'voice' and old is not None and old[1].startswith('voice') and now - old[0] < 2.0:
+                  txt = old[1]
+              self.slot_act[slot] = (now, txt)
+
+          def _call(self, slot, lc_txt, where):
+              now = time.time()
+              k = lc_txt.split(' ENCRYPTED')[0].split(' EMERGENCY')[0]
+              c = self.calls.setdefault(k, [now, now, where])
+              c[1], c[2] = now, (where if where != 'voice here' else '%s on %s' % (where, slot))
+              if where == 'voice here':
+                  self.slot_act[slot] = (now, 'voice ' + lc_txt)
+
+          def _plan(self, lpcn):
+              if self.plan_ref_hz > 0 and lpcn not in (0, 0xFFF):
+                  return self.plan_ref_hz + (lpcn - self.plan_ref_lpcn) * self.plan_step_hz
+              return None
+
+          def _freq(self, lpcn):
+              if lpcn in self.chmap:
+                  return '%.5f MHz' % (self.chmap[lpcn][0] / 1e6)
+              f = self._plan(lpcn)
+              if f is not None:
+                  return 'LPCN %d = %.5f MHz (plan)' % (lpcn, f / 1e6)
+              return 'LPCN %d (freq not announced)' % lpcn
+
+          def _status(self, now):
+              L = []
+              bar = '=' * 72
+              L += [bar, ' DMR channel status   %s   (running %d s)' % (time.strftime('%H:%M:%S'), now - self.t0), bar]
+              rf = ('%.5f MHz' % (self.rf_hz / 1e6)) if self.rf_hz > 0 else '(set rf_hz)'
+              if self.offs:
+                  o = sorted(x[0] for x in self.offs)[len(self.offs) // 2]
+                  d = sorted(x[1] for x in self.offs)[len(self.offs) // 2]
+                  ppm = ('  ~%+.1f ppm' % (o / self.rf_hz * 1e6)) if self.rf_hz > 0 else ''
+                  L.append(' Frequency   : %s   carrier offset %+.0f Hz%s   deviation %.0f Hz' % (rf, o, ppm, d))
+              else:
+                  L.append(' Frequency   : %s   (no DMR burst decoded yet)' % rf)
+              kinds = [k for k, t in sorted(self.chan_kind.items(), key=lambda kv: -kv[1]) if now - t < 30]
+              L.append(' Channel type: %s' % ('; '.join(kinds) if kinds else '-'))
+              if self.site and now - self.site[1] < 60:
+                  L.append(' Site        : %s' % self.site[0])
+              vend = ['%02X %s' % (f, FID_NAME.get(f, '?')) for f, t in self.fids.items() if now - t < 60 and f != 0]
+              if self.fids:
+                  L.append(' Feature IDs : standard%s' % ((' + ' + ', '.join(vend)) if vend else ''))
+              cc = sorted(self.ccs.items(), key=lambda kv: -kv[1])
+              L.append(' Colour code : %s' % (', '.join('CC%d (%d bursts)' % kv for kv in cc) if cc else '-'))
+              for sl in sorted(self.slot_act):
+                  t, txt = self.slot_act[sl]
+                  age = now - t
+                  L.append(' %-12s: %s%s' % (sl, txt if age < 5 else 'silent',
+                                             '' if age < 5 else ' (last: %s, %d s ago)' % (txt, age)))
+              if self.neigh:
+                  L.append(' Neighbours  :')
+                  own = self.site[2] if self.site else None
+                  for sc, (txt, lpcn, t, how, ch) in sorted(self.neigh.items()):
+                      f = ('%.5f MHz' % (ch[1] / 1e6)) if ch else (self._freq(lpcn) if lpcn not in (None, 0xFFF) else '-')
+                      L.append('    %-20s syscode %04X  TSCC %-36s [%s, %d s ago]%s' % (
+                          txt, sc, f, how, now - t, '  <- THIS SITE' if sc == own else ''))
+              if self.plan_ref_hz > 0:
+                  L.append(' Channel plan: (configured) LPCN n = %.5f MHz + (n - %d) x %.3f kHz' % (
+                      self.plan_ref_hz / 1e6, self.plan_ref_lpcn, self.plan_step_hz / 1e3))
+              if self.chmap:
+                  L.append(' Announced   : ' + ', '.join('LPCN %d = %.5f MHz (TX %.5f)' % (k, v[0] / 1e6, v[1] / 1e6)
+                                                    for k, v in sorted(self.chmap.items())))
+              recent = sorted(((v[1], k, v) for k, v in self.calls.items() if now - v[1] < 300), reverse=True)[:8]
+              if recent:
+                  L.append(' Calls (last 5 min, newest first):')
+                  for t, k, v in recent:
+                      L.append('    %s  %-36s %s' % (time.strftime('%H:%M:%S', time.localtime(t)), k, v[2]))
+              r = self.voc_report
+              if isinstance(r, dict):
+                  L.append((' Voice audio : %s' % r.get('lib', '?'))[:150])
+                  if r.get('ok'):
+                      st = r.get('stats', {}) or {}
+                      L.append('               playing: %s   delay %.2f s%s   frames decoded/avg bit errors: %s' % (
+                          {0: 'all slots', 1: 'TS1', 2: 'TS2'}.get(int(r.get('slot', 0)), '?'), float(r.get('delay', 0)),
+                          ('  (%d bursts too late: raise audio_delay)' % r['late']) if r.get('late') else '',
+                          ', '.join('%s %d/%.2f%s' % (k, v[0], v[1] / max(v[0], 1),
+                                                      ' (encrypted, muted)' if self.enc.get(k) else '')
+                                    for k, v in sorted(st.items())) or '-'))
+              L.append(' Decoder     : bursts %d (idle %d, voice superframes %d)  rejected: slot-type %d, BPTC %d, '
+                       'CRC/RS %d, off-grid/unconfirmed sync %d' % (
+                           self.n['bursts'], self.n['idle'], self.n['voice'], self.n['bad_slot_type'],
+                           self.n['bptc_fail'], self.n['crc_fail'], self.n['offgrid']))
+              if self.n['bursts'] == 0:
+                  L.append(' NOTE        : no DMR sync: check frequency/ppm (or the carrier is not DMR)')
+              elif self.n['bad_slot_type'] > self.n['bursts'] // 2:
+                  L.append(' NOTE        : mostly bad slot types: fix ppm')
+              L.append(bar)
+              return '\n'.join(L)
+    color_code: color_code
+    dedup_s: dedup_s
+    show_data: 'True'
+    rf_hz: rf_hz
+    plan_ref_lpcn: plan_ref_lpcn
+    plan_ref_hz: plan_ref_hz
+    plan_step_hz: plan_step_hz
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1480
+    - 300
+    rotation: 0
+    state: enabled
+    _io_cache: '(''DMR Layer 2'', ''blk'', [(''color_code'', ''-1''), (''dedup_s'', ''10.0''), (''show_data'', ''True''), (''rf_hz'', ''0.0''), (''plan_ref_lpcn'', ''0''), (''plan_ref_hz'', ''0.0''), (''plan_step_hz'', ''12500.0'')], [(''bursts'', ''message'', 1), (''vstats'', ''message'', 1)], [(''text'', ''message'', 1), (''voice'', ''message'', 1)], ''DMR Layer 2: CACH/SLC, slot type, BPTC, CSBK, voice LC, embedded LC -> text, voice frames'', [''color_code'', ''dedup_s'', ''plan_ref_hz'', ''plan_ref_lpcn'', ''plan_step_hz'', ''rf_hz'', ''show_data''])'
+- name: vocoder
+  id: epy_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'STAGE 4  EPB vocoder: mbelib-neo via ctypes;
+
+      clock input = framer output (8 kHz)'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    _source_code: |
+      """
+      AMBE+2 Vocoder -- Embedded Python Block (stage 4 of the DMR Decoder hier block)
+
+      Input  stream 0 : the framer's 8 kHz symbol stream, used only as a sample CLOCK, so the
+                        audio stays locked to signal time (8000 output samples per 48000 input)
+             'voice'  : voice-burst messages from Layer 2 (216 soft bits = 3 AMBE+2 frames)
+      Output stream 0 : 8 kHz audio, +-1 full scale; silence when no call
+             'vstats' : periodic report for the Layer 2 status panel
+
+      The AMBE+2 decoder itself is mbelib-neo (mbe-neo.dll; soft decision) or classic mbelib,
+      loaded at run time with ctypes (mbelib_path; '' = search next to the flowgraph and PATH).
+      Each burst's 60 ms of audio is placed audio_delay after the burst's own position in the
+      signal: pauses and lost bursts keep their real length, and nothing drifts.
+      """
+      import sys
+      import time
+      import numpy as np
+      import pmt
+      from gnuradio import gr
+      # ============================================================================
+      #  AMBE+2 voice decoding through mbelib-neo / mbelib (loaded with ctypes)
+      # ============================================================================
+      import ctypes
+      import ctypes.util
+      import os
+
+      # DMR AMBE interleave schedule (ETSI TS 102 361-1; table as in DSD / DSD-FME):
+      # dibit i of a 72-bit AMBE frame -> msb to ambe_fr[rW][rX], lsb to ambe_fr[rY][rZ]
+      _rW = (0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2)
+      _rX = (23, 10, 22, 9, 21, 8, 20, 7, 19, 6, 18, 5, 17, 4, 16, 3, 15, 2, 14, 1, 13, 0, 12, 10, 11, 9, 10, 8, 9, 7,
+             8, 6, 7, 5, 6, 4)
+      _rY = (0, 2, 0, 2, 0, 2, 0, 2, 0, 3, 0, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3)
+      _rZ = (5, 3, 4, 2, 3, 1, 2, 0, 1, 13, 0, 12, 22, 11, 21, 10, 20, 9, 19, 8, 18, 7, 17, 6, 16, 5, 15, 4, 14, 3,
+             13, 2, 12, 1, 11, 0)
+      AMBE_FR_IDX = np.zeros(72, dtype=np.int64)          # frame bit k -> flat index row*24+col
+      for _i in range(36):
+          AMBE_FR_IDX[2 * _i] = _rW[_i] * 24 + _rX[_i]
+          AMBE_FR_IDX[2 * _i + 1] = _rY[_i] * 24 + _rZ[_i]
+
+
+      def burst_ambe_llrs(llr264):
+          """voice burst (264 soft bits, sync/EMB in 108..155) -> three 72-bit AMBE frames"""
+          return (llr264[0:72], np.concatenate([llr264[72:108], llr264[156:192]]), llr264[192:264])
+
+
+      _LIB_NAMES = ('mbe-neo.dll', 'libmbe-neo.dll', 'libmbe-neo.so', 'libmbe-neo.so.2', 'libmbe-neo.dylib',
+                    'mbe.dll', 'libmbe.dll', 'libmbe.so', 'libmbe.so.1', 'libmbe.dylib')
+
+
+      def load_mbelib(path=''):
+          """Returns (ctypes library, description) or (None, reason). `path` may be a file or folder."""
+          cands = []
+          if path:
+              if os.path.isdir(path):
+                  cands += [os.path.join(path, n) for n in _LIB_NAMES]
+              else:
+                  cands.append(path)
+          here = [os.getcwd()]
+          try:
+              here.append(os.path.dirname(os.path.abspath(__file__)))
+          except NameError:
+              pass
+          for d in here:
+              cands += [os.path.join(d, n) for n in _LIB_NAMES]
+          for n in ('mbe-neo', 'mbe'):
+              f = ctypes.util.find_library(n)
+              if f:
+                  cands.append(f)
+          tried = []
+          for c in cands:
+              if os.path.sep in c and not os.path.exists(c):
+                  continue
+              try:
+                  if hasattr(os, 'add_dll_directory') and os.path.isabs(c):
+                      try:
+                          os.add_dll_directory(os.path.dirname(c))       # dependent DLLs next to it
+                      except OSError:
+                          pass
+                  lib = ctypes.CDLL(c)
+                  if not hasattr(lib, 'mbe_processAmbe3600x2450Framef'):
+                      tried.append('%s (no AMBE+2 decoder)' % c)
+                      continue
+                  return lib, c
+              except OSError as e:
+                  tried.append('%s (%s)' % (c, e))
+          return None, ('not found; tried: ' + '; '.join(tried)) if tried else 'not found (no candidate files)'
+
+
+      class AmbeVocoder(object):
+          """Thin ctypes wrapper. mbelib-neo 2.x: soft-decision frames + result struct.
+          Classic mbelib / mbelib-neo 1.x: hard bits, (errs, errs2, err_str) signature."""
+          PARMS_BYTES = 16384        # opaque mbe_parms storage (real size ~2.5 kB; never read here)
+
+          def __init__(self, lib, uvquality=3):
+              self.lib = lib
+              self.neo2 = hasattr(lib, 'mbe_initProcessResult')
+              self.uvq = int(uvquality)
+              f = lib.mbe_processAmbe3600x2450Framef
+              if self.neo2 and hasattr(lib, 'mbe_processAmbe3600x2450SoftFramef'):
+                  self.soft = True
+                  fs = lib.mbe_processAmbe3600x2450SoftFramef
+                  fs.restype = ctypes.c_int
+                  fs.argtypes = [ctypes.c_void_p] * 7
+                  self._fn = fs
+              else:
+                  self.soft = False
+                  f.restype = ctypes.c_int if self.neo2 else None
+                  self._fn = f
+              lib.mbe_initMbeParms.restype = None
+              lib.mbe_initMbeParms.argtypes = [ctypes.c_void_p] * 3
+              self.version = 'mbelib-neo 2.x (soft decision)' if self.soft else (
+                  'mbelib-neo 2.x (hard)' if self.neo2 else 'mbelib / mbelib-neo 1.x (hard decision)')
+
+          def new_state(self):
+              st = [ctypes.create_string_buffer(self.PARMS_BYTES) for _ in range(3)]
+              self.lib.mbe_initMbeParms(st[0], st[1], st[2])
+              return st
+
+          def decode(self, state, llr72):
+              """one 72-bit AMBE+2 frame (soft bits, positive -> 1) -> 160 float samples (8 kHz,
+              roughly +-1 full scale) and the error count reported by the library"""
+              llr72 = np.asarray(llr72, dtype=np.float64)
+              bits = (llr72 > 0).astype(np.uint8)
+              out = (ctypes.c_float * 160)()
+              amb_d = ctypes.create_string_buffer(49)
+              if self.soft:
+                  fr = np.zeros((96, 2), dtype=np.uint8)
+                  fr[AMBE_FR_IDX, 0] = bits
+                  fr[AMBE_FR_IDX, 1] = np.clip(np.abs(llr72) * 255.0, 1, 255).astype(np.uint8)
+                  res = ctypes.create_string_buffer(64)
+                  errs = self._fn(out, res, fr.tobytes(), amb_d, state[0], state[1], state[2])
+              else:
+                  fr = np.zeros(96, dtype=np.uint8)
+                  fr[AMBE_FR_IDX] = bits
+                  if self.neo2:
+                      res = ctypes.create_string_buffer(64)
+                      errs = self._fn(out, res, fr.tobytes(), amb_d, state[0], state[1], state[2])
+                  else:
+                      e1, e2 = ctypes.c_int(0), ctypes.c_int(0)
+                      es = ctypes.create_string_buffer(64)
+                      self._fn(out, ctypes.byref(e1), ctypes.byref(e2), es, fr.tobytes(), amb_d,
+                               state[0], state[1], state[2], ctypes.c_int(self.uvq))
+                      errs = e1.value + e2.value
+              return np.frombuffer(out, dtype=np.float32).copy() * (7.0 / 32768.0), errs
+
+
+      # ============================================================================
+      #  GNU Radio block
+      # ============================================================================
+      def _meta(m):
+          out = {}
+          items = pmt.dict_items(m)
+          for i in range(pmt.length(items)):
+              kv = pmt.nth(i, items)
+              out[pmt.symbol_to_string(pmt.car(kv))] = pmt.to_python(pmt.cdr(kv))
+          return out
+
+
+      class blk(gr.sync_block):
+          """AMBE+2 Vocoder: voice-frame messages -> 8 kHz audio, paced by the clock input"""
+
+          def __init__(self, sps=10, audio_slot=0, mbelib_path='', audio_delay=0.4, report_every=2.0):
+              gr.sync_block.__init__(self, name='AMBE+2 Vocoder', in_sig=[np.float32], out_sig=[np.float32])
+              self.message_port_register_in(pmt.intern('voice'))
+              self.message_port_register_out(pmt.intern('vstats'))
+              self.set_msg_handler(pmt.intern('voice'), self._on_voice)
+              self.sps = int(sps)
+              self.adec = self.sps * 3 // 5                 # 48 kS/s sample positions per 8 kHz sample
+              self.audio_slot = int(audio_slot)
+              self.audio_delay = float(audio_delay)
+              self.report_every = float(report_every)
+              self.voc, self.gain = None, 1.0
+              lib, where = load_mbelib(str(mbelib_path))
+              if lib is not None:
+                  try:
+                      self.voc = AmbeVocoder(lib)
+                      self.gain = 1.0 if self.voc.neo2 else 0.33           # classic mbelib is ~3x louder
+                      self.lib_msg = '%s  [%s]' % (self.voc.version, where)
+                  except Exception as e:
+                      self.lib_msg = 'OFF - library found but unusable: %s (%s)' % (where, e)
+              else:
+                  self.lib_msg = 'OFF - no AMBE+2 vocoder (mbe-neo.dll / mbelib) %s' % where
+              sys.stdout.write('[DMR] voice: %s\n' % (self.lib_msg if self.voc else self.lib_msg + '  -> audio silent'))
+              sys.stdout.flush()
+              self.abuf = np.zeros(int(8000 * (self.audio_delay + 1.0)), dtype=np.float32)
+              self.abase = 0                                # output index of abuf[0] (= clock samples seen)
+              self.release = -1e18                          # all voice bursts up to this position have arrived
+              self.t_rep = time.time()
+              self._reset()
+
+          def _reset(self):
+              self.vstate, self.vlast, self.stats = {}, {}, {}
+              self.late = 0
+              self.enc_noted = {}
+
+          def _selected(self, slot):
+              if self.audio_slot == 0:
+                  return True
+              return slot.endswith('TS%d' % self.audio_slot) or (self.audio_slot == 1 and slot == 'MS')
+
+          def _on_voice(self, msg):
+              m = _meta(pmt.car(msg))
+              if m.get('type') == 'reset':
+                  self._reset()
+                  return
+              if m.get('type') == 'progress':
+                  self.release = max(self.release, float(m['pos']))
+                  return
+              if self.voc is None:
+                  return
+              slot, pos = m['slot'], float(m['pos'])
+              if slot == 'TS?':
+                  return
+              llr = np.array(pmt.f32vector_elements(pmt.cdr(msg)), dtype=np.float64)   # 216 soft bits
+              if slot not in self.vstate or pos - self.vlast.get(slot, -1e18) > 3 * 288 * self.sps:
+                  self.vstate[slot] = self.voc.new_state()              # new call: fresh vocoder state
+              self.vlast[slot] = pos
+              st = self.stats.setdefault(slot, [0, 0])
+              pcm = []
+              for f in (llr[0:72], llr[72:144], llr[144:216]):          # 3 AMBE+2 frames = 60 ms
+                  a, e = self.voc.decode(self.vstate[slot], f)
+                  pcm.append(a)
+                  st[0] += 1
+                  st[1] += max(int(e), 0)
+              if m.get('enc'):
+                  if not self.enc_noted.get(slot):
+                      self.enc_noted[slot] = True
+                      sys.stdout.write('[DMR %s] %s encrypted call: audio muted\n' % (time.strftime('%H:%M:%S'), slot))
+                  return
+              self.enc_noted[slot] = False
+              if not self._selected(slot):
+                  return
+              a = np.concatenate(pcm) * self.gain
+              start = int(round((pos + self.audio_delay * 4800 * self.sps) / self.adec)) - self.abase
+              if start < 0:
+                  self.late += 1
+                  a, start = a[-start:], 0
+              end = start + len(a)
+              if end > len(self.abuf):
+                  self.abuf = np.concatenate([self.abuf, np.zeros(end - len(self.abuf) + 8000, np.float32)])
+              self.abuf[start:end] += a
+
+          def work(self, input_items, output_items):
+              # Only play what is complete: output sample i may still receive audio from any burst at
+              # pos <= i*adec - delay, so wait until Layer 2 confirms all those bursts have been sent.
+              # (The stages run in separate threads; without this the clock could outrun the messages.)
+              allowed = int(np.floor((self.release + self.audio_delay * 4800 * self.sps) / self.adec)) - self.abase
+              n = min(len(output_items[0]), allowed)
+              if n <= 0:
+                  return 0
+              if len(self.abuf) < n:
+                  self.abuf = np.concatenate([self.abuf, np.zeros(n - len(self.abuf), np.float32)])
+              output_items[0][:n] = np.clip(self.abuf[:n], -1.0, 1.0)
+              self.abuf = np.concatenate([self.abuf[n:], np.zeros(n, np.float32)])
+              self.abase += n
+              now = time.time()
+              if now - self.t_rep >= self.report_every:
+                  self.t_rep = now
+                  rep = {'lib': self.lib_msg, 'ok': self.voc is not None, 'slot': self.audio_slot,
+                         'delay': self.audio_delay, 'late': self.late,
+                         'stats': {k: (v[0], v[1]) for k, v in self.stats.items()}}
+                  self.message_port_pub(pmt.intern('vstats'), pmt.to_pmt(rep))
+              return n
+    sps: sps
+    audio_slot: audio_slot
+    mbelib_path: mbelib_path
+    audio_delay: audio_delay
+    report_every: '2.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1480
+    - 500
+    rotation: 0
+    state: enabled
+    _io_cache: '(''AMBE+2 Vocoder'', ''blk'', [(''sps'', ''10''), (''audio_slot'', ''0''), (''mbelib_path'', "''''"), (''audio_delay'', ''0.4''), (''report_every'', ''2.0'')], [(''0'', ''float'', 1), (''voice'', ''message'', 1)], [(''0'', ''float'', 1), (''vstats'', ''message'', 1)], ''AMBE+2 Vocoder: voice-frame messages -> 8 kHz audio, paced by the clock input'', [''audio_delay'', ''audio_slot'', ''mbelib_path'', ''report_every'', ''sps''])'
+- name: pad_audio
+  id: pad_sink
+  parameters:
+    comment: 8 kHz voice audio
+    label: audio
+    type: float
+    vlen: '1'
+    num_streams: '1'
+    optional: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1820
+    - 520
+    rotation: 0
+    state: enabled
+- name: pad_sym
+  id: pad_sink
+  parameters:
+    comment: 8 kHz symbol samples (histogram)
+    label: sym
+    type: float
+    vlen: '1'
+    num_streams: '1'
+    optional: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1820
+    - 640
+    rotation: 0
+    state: enabled
+- name: pad_text
+  id: pad_sink
+  parameters:
+    comment: decoded lines (PDUs)
+    label: text
+    type: message
+    vlen: '1'
+    num_streams: '1'
+    optional: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1820
+    - 320
+    rotation: 0
+    state: enabled
+connections:
+- - pad_in
+  - '0'
+  - rrc
+  - '0'
+- - rrc
+  - '0'
+  - corr_bs
+  - '0'
+- - corr_bs
+  - '0'
+  - rho_bs
+  - '0'
+- - sigma
+  - '0'
+  - rho_bs
+  - '1'
+- - rrc
+  - '0'
+  - corr_ms
+  - '0'
+- - corr_ms
+  - '0'
+  - rho_ms
+  - '0'
+- - sigma
+  - '0'
+  - rho_ms
+  - '1'
+- - rrc
+  - '0'
+  - corr_dm1
+  - '0'
+- - corr_dm1
+  - '0'
+  - rho_dm1
+  - '0'
+- - sigma
+  - '0'
+  - rho_dm1
+  - '1'
+- - rrc
+  - '0'
+  - corr_dm2
+  - '0'
+- - corr_dm2
+  - '0'
+  - rho_dm2
+  - '0'
+- - sigma
+  - '0'
+  - rho_dm2
+  - '1'
+- - rrc
+  - '0'
+  - sum_x
+  - '0'
+- - rrc
+  - '0'
+  - sq_x
+  - '0'
+- - rrc
+  - '0'
+  - sq_x
+  - '1'
+- - sq_x
+  - '0'
+  - sum_x2
+  - '0'
+- - sum_x
+  - '0'
+  - sq_s1
+  - '0'
+- - sum_x
+  - '0'
+  - sq_s1
+  - '1'
+- - sq_s1
+  - '0'
+  - div24
+  - '0'
+- - sum_x2
+  - '0'
+  - var24
+  - '0'
+- - div24
+  - '0'
+  - var24
+  - '1'
+- - var24
+  - '0'
+  - eps
+  - '0'
+- - eps
+  - '0'
+  - sigma
+  - '0'
+- - rrc
+  - '0'
+  - framer
+  - '0'
+- - rho_bs
+  - '0'
+  - framer
+  - '1'
+- - rho_ms
+  - '0'
+  - framer
+  - '2'
+- - rho_dm1
+  - '0'
+  - framer
+  - '3'
+- - rho_dm2
+  - '0'
+  - framer
+  - '4'
+- - framer
+  - bursts
+  - l2
+  - bursts
+- - l2
+  - voice
+  - vocoder
+  - voice
+- - vocoder
+  - vstats
+  - l2
+  - vstats
+- - framer
+  - '0'
+  - vocoder
+  - '0'
+- - framer
+  - '0'
+  - pad_sym
+  - '0'
+- - vocoder
+  - '0'
+  - pad_audio
+  - '0'
+- - l2
+  - text
+  - pad_text
+  - in
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0

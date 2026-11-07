@@ -1,0 +1,1946 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: DMR Tier II/III RX, RTL-SDR, stock front end + 1 EPB burst decoder
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: dmr_rx
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: DMR RX - Tier II/III decoder (RTL-SDR)
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: audio_slot
+  id: variable_qtgui_chooser
+  parameters:
+    comment: Which time slot to play. Encrypted calls are always muted.
+    gui_hint: 3,1,1,1
+    label: Play slot
+    label0: Both slots
+    label1: TS1
+    label2: TS2
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '3'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1, 2]'
+    orient: Qt.QVBoxLayout
+    type: int
+    value: '0'
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1640, 368.0]
+    rotation: 0
+    state: enabled
+- name: ch_cut
+  id: variable
+  parameters:
+    comment: 'Channel LPF cutoff [Hz] (-6 dB). 5 kHz won the simulation;
+
+      4.5 kHz is ~0.5 dB better once ppm is right'
+    value: '5000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 12]
+    rotation: 0
+    state: enabled
+- name: ch_rate
+  id: variable
+  parameters:
+    comment: 'Stage 2: 240 -> 48 kS/s'
+    value: if_rate/5
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [640, 12]
+    rotation: 0
+    state: enabled
+- name: ch_tw
+  id: variable
+  parameters:
+    comment: Channel LPF transition [Hz]
+    value: '2000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 92]
+    rotation: 0
+    state: enabled
+- name: decim1
+  id: variable
+  parameters:
+    comment: 'Stage 1: 960 -> 240 kS/s'
+    value: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [520, 12]
+    rotation: 0
+    state: enabled
+- name: dev_unit
+  id: variable
+  parameters:
+    comment: 'DMR 4FSK: +-648 Hz / +-1944 Hz -> symbols +-1 / +-3'
+    value: '648.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 92]
+    rotation: 0
+    state: enabled
+- name: dmr_freq
+  id: variable
+  parameters:
+    comment: DMR carrier [Hz] (the one the P25 decoder flagged as DMR)
+    value: dmr_freq_entry*1e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 12]
+    rotation: 0
+    state: enabled
+- name: dmr_freq_entry
+  id: variable_qtgui_entry
+  parameters:
+    comment: ''
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: DMR Freq(MHz)
+    type: real
+    value: '429.325'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [176, 120.0]
+    rotation: 0
+    state: enabled
+- name: fine_hz
+  id: variable_qtgui_range
+  parameters:
+    comment: 'Moves the channel inside the 240 kHz IF: OK for channels within +-30
+      kHz.
+
+      Decoding re-locks on the first sync after a change.'
+    gui_hint: 0,2,1,1
+    label: Fine tune [Hz]
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '-30000'
+    step: '100'
+    stop: '30000'
+    value: '0'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1360, 12]
+    rotation: 0
+    state: enabled
+- name: if_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: samp_rate/decim1
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [520, 92]
+    rotation: 0
+    state: enabled
+- name: lo_offset
+  id: variable
+  parameters:
+    comment: 'LO sits this far below the channel: keeps it off
+
+      the RTL DC spike / LO leakage'
+    value: 100e3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 92]
+    rotation: 0
+    state: enabled
+- name: mbelib_path
+  id: variable
+  parameters:
+    comment: 'AMBE+2 vocoder library for voice audio, loaded with ctypes.
+
+      '''' = search next to this .grc and on PATH for mbe-neo.dll (mbelib-neo 2.x,
+
+      recommended: soft decision) or mbe.dll / libmbe (classic mbelib).
+
+      Or give a full path, e.g. r''C:\\sdr\\mbelib-neo\\bin\\mbe-neo.dll'''
+    value: ''''''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1300, 172]
+    rotation: 0
+    state: enabled
+- name: plan_ref_hz
+  id: variable
+  parameters:
+    comment: 'Set to 0 to disable the configured plan
+
+      (announced Chan_Freq always wins)'
+    value: 148.7215e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1120, 92]
+    rotation: 0
+    state: enabled
+- name: plan_ref_lpcn
+  id: variable
+  parameters:
+    comment: 'Channel plan (optional): LPCN n = plan_ref_hz + (n - plan_ref_lpcn)
+      * plan_step_hz.
+
+      Inferred from two measured Tait control channels:
+
+      LPCN 151 = 148.7215 MHz (site 15), LPCN 155 = 148.7713 MHz (site 16).'
+    value: '151'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1120, 12]
+    rotation: 0
+    state: enabled
+- name: plan_step_hz
+  id: variable
+  parameters:
+    comment: 'Measured: 4 LPCN steps = 49.8 kHz'
+    value: '12500'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1120, 172]
+    rotation: 0
+    state: enabled
+- name: ppm
+  id: variable_qtgui_range
+  parameters:
+    comment: 'Your gqrx shows 9-10 ppm: same driver call, same value'
+    gui_hint: 0,1,1,1
+    label: Freq corr [ppm]
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '-60'
+    step: '0.5'
+    stop: '60'
+    value: '35'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1180, 12]
+    rotation: 0
+    state: enabled
+- name: rf_gain
+  id: variable_qtgui_range
+  parameters:
+    comment: Back off if the waterfall shows images / a raised floor
+    gui_hint: 0,0,1,1
+    label: RF gain [dB]
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '0.1'
+    stop: '49.6'
+    value: '29.7'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1000, 12]
+    rotation: 0
+    state: enabled
+- name: rrc_raw
+  id: variable
+  parameters:
+    comment: ETSI TX filter is RRC 0.2 -> matched RX filter
+    value: firdes.root_raised_cosine(1.0, ch_rate, 4800, 0.2, 11*sps+1)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1000, 92]
+    rotation: 0
+    state: enabled
+- name: rrc_taps
+  id: variable
+  parameters:
+    comment: unity DC gain (keeps +-1/+-3 levels)
+    value: '[t/sum(rrc_raw) for t in rrc_raw]'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1000, 172]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: 'RTL rate. 960 kS/s = 4800 x 200: integer chain 4 x 5 x 10 sps'
+    value: 960e3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 12]
+    rotation: 0
+    state: enabled
+- name: sps
+  id: variable
+  parameters:
+    comment: 10 samples per symbol (4800 Bd)
+    value: int(round(ch_rate/4800))
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [640, 92]
+    rotation: 0
+    state: enabled
+- name: volume
+  id: variable_qtgui_range
+  parameters:
+    comment: Audio gain after the vocoder (decoder output is ~+-1 full scale)
+    gui_hint: 3,0,1,1
+    label: Volume
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '0.1'
+    stop: '8'
+    value: '1.0'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [832, 420.0]
+    rotation: 0
+    state: enabled
+- name: audio_out
+  id: audio_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Default sound device. Occasional "aU"/"aO" on the console = sound card
+
+      and RTL clocks differ slightly; harmless.'
+    device_name: ''''''
+    num_inputs: '1'
+    ok_to_block: 'True'
+    samp_rate: '48000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1640, 288.0]
+    rotation: 0
+    state: enabled
+- name: chan_lpf
+  id: low_pass_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '6.76'
+    comment: 'Stage 2: channel filter, /5 -> 48 kS/s'
+    cutoff_freq: ch_cut
+    decim: '5'
+    gain: '1'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: if_rate
+    type: fir_filter_ccf
+    width: ch_tw
+    win: window.WIN_HAMMING
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [520, 264.0]
+    rotation: 0
+    state: enabled
+- name: dmr_dec
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nDMR (ETSI TS 102 361) Tier II / III burst decoder -- Embedded\
+      \ Python Block, GNU Radio 3.10\n\nInput  : float stream at `sps` samples per\
+      \ symbol (10 = 48 kS/s), the RRC-filtered\n         discriminator output; nominal\
+      \ levels +-1 / +-3 (Quadrature Demod gain =\n         fs/(2*pi*648)).\nOutput\
+      \ : stream 0: decoded voice, 8 kHz float (+-1), silence when no call.\n    \
+      \     stream 1: symbol samples (sample-and-hold, 8 kHz) for a histogram display.\n\
+      \         message port 'out' -> one u8vector PDU per printed line. Lines are\
+      \ printed too.\n\nTiming is FEED-FORWARD: every 48-bit sync is located to a\
+      \ fraction of a sample by\ncorrelation, and that burst is sampled at exactly\
+      \ that timing (bursts without sync,\nvoice B-F and the CACH grid, reuse the\
+      \ timing of the nearest sync). There is no\nfeedback timing loop, so nothing\
+      \ can drift or wind up while the signal is absent\nor being retuned: the first\
+      \ sync after a retune is decoded correctly. Gain and DC\n(carrier offset) are\
+      \ likewise re-estimated from every sync.\n\nDecodes: BS (repeater), MS and direct-mode\
+      \ syncs; CACH (TACT -> time slot, Short LC:\nsystem identity / activity); slot\
+      \ type (Golay 20,8); BPTC(196,96) bursts: CSBK,\nvoice LC header, terminator,\
+      \ PI header, data header; voice superframes with EMB\n(QR 16,7) and embedded\
+      \ LC (late entry). Voice audio (AMBE+2) is NOT decoded.\n\nWhy an EPB: none\
+      \ of the above exists as a stock GNU Radio block.\n\nCode tables were extracted\
+      \ from MMDVMHost (G4KLX) encoder classes; the decoder was\nvalidated against\
+      \ burst streams generated with those classes and against a captured\nvoice LC\
+      \ header from dmr_utils3.\n\nVoice audio: AMBE+2 frames are handed to mbelib-neo\
+      \ (mbe-neo.dll, soft-decision API)\nor classic mbelib, loaded at run time with\
+      \ ctypes (parameter mbelib_path; empty =\nlook next to the flowgraph and on\
+      \ PATH). Without the library everything else still\nworks and the audio output\
+      \ stays silent. Encrypted calls are muted.\n\"\"\"\nimport sys\nimport time\n\
+      import threading\nimport numpy as np\nimport pmt\nfrom gnuradio import gr\n\n\
+      DIBIT_LEVEL = np.array([1.0, 3.0, -1.0, -3.0])        # dibit 00,01,10,11 ->\
+      \ +1,+3,-1,-3\n\n# voice syncs; the matching data sync is the sign-inverted\
+      \ pattern\nSYNCS = {'BS': 0x755FD7DF75F7, 'MS': 0x7F7D5DD57DFD, 'DM1': 0x5D577F7757FF,\
+      \ 'DM2': 0x7DFFD5F55D5F}\nP25_FS = 0x5575F5FF77FF\n\nGOLAY2087_ROWS = (0x803DA,\
+      \ 0x40D99, 0x206CD, 0x10367, 0x08DC6, 0x04A97, 0x0293E, 0x018EB)\nQR1676_ROWS\
+      \ = (0x804F, 0x411E, 0x21B7, 0x11E2, 0x09C9, 0x04E5, 0x0273)\nHAM15113_ROWS\
+      \ = (0x4009, 0x200D, 0x100F, 0x080E, 0x0407, 0x020A, 0x0105, 0x008B, 0x004C,\
+      \ 0x0026, 0x0013)\nHAM1393_ROWS = (0x100F, 0x080E, 0x0407, 0x020A, 0x0105, 0x008B,\
+      \ 0x004C, 0x0026, 0x0013)\nHAM16114_ROWS = (0x8013, 0x401A, 0x201F, 0x101C,\
+      \ 0x080E, 0x0415, 0x020B, 0x0116, 0x0099, 0x004D, 0x0027)\nHAM17123_ROWS = (0x1001B,\
+      \ 0x0801F, 0x0401D, 0x0201C, 0x0100E, 0x00807, 0x00411, 0x0021A, 0x0010D,\n\
+      \                 0x00094, 0x0004A, 0x00025)\nTACT_ROWS = (0b1000101, 0b0100111,\
+      \ 0b0010110, 0b0001011)     # AT TC LS1 LS0 | H0 H1 H2\nCACH_TACT_POS = (0,\
+      \ 4, 8, 12, 14, 18, 22)\nCACH_PAYLOAD_POS = (1, 2, 3, 5, 6, 7, 9, 10, 11, 13,\
+      \ 15, 16, 17, 19, 20, 21, 23)\n\nDT_NAME = {0: 'PI HDR', 1: 'VOICE HDR', 2:\
+      \ 'TERMINATOR', 3: 'CSBK', 4: 'MBC HDR', 5: 'MBC CONT',\n           6: 'DATA\
+      \ HDR', 7: 'DATA 1/2', 8: 'DATA 3/4', 9: 'IDLE', 10: 'DATA 1/1'}\nCRC_MASK =\
+      \ {0: 0x6969, 3: 0xA5A5, 4: 0xAAAA, 6: 0xCCCC}\nRS_MASK = {1: 0x969696, 2: 0x999999}\n\
+      FID_NAME = {0x00: 'std', 0x04: 'Flyde', 0x06: 'Trident', 0x08: 'Hytera', 0x10:\
+      \ 'Motorola',\n            0x58: 'Tait', 0x68: 'Hytera'}\nCSBKO_NAME = {0x04:\
+      \ 'UU_V_Req', 0x05: 'UU_Ans_Rsp', 0x07: 'CT_CSBK', 0x19: 'C_ALOHA', 0x1A: 'C_UDT_HEAD',\n\
+      \              0x1C: 'C_AHOY', 0x1E: 'C_ACKVIT', 0x1F: 'C_RAND', 0x20: 'C_ACKD',\
+      \ 0x21: 'C_ACKU',\n              0x22: 'P_ACKD', 0x23: 'P_ACKU', 0x24: 'RADIO_CHECK',\
+      \ 0x26: 'NACK_RSP', 0x27: 'CALL_EMERGENCY',\n              0x28: 'C_BCAST',\
+      \ 0x29: 'C_MAINT', 0x2A: 'P_MAINT', 0x2E: 'P_CLEAR', 0x2F: 'P_PROTECT',\n  \
+      \            0x30: 'PV_GRANT', 0x31: 'TV_GRANT', 0x32: 'BTV_GRANT', 0x33: 'PD_GRANT',\
+      \ 0x34: 'TD_GRANT',\n              0x35: 'PV_GRANT_DX', 0x36: 'PD_GRANT_DX',\
+      \ 0x37: 'PD_GRANT_MI', 0x38: 'BS_DWN_ACT', 0x39: 'C_MOVE',\n              0x3D:\
+      \ 'PREAMBLE'}\n# ETSI reserved \"gateway\" addresses (TS 102 361-4), names as\
+      \ used by DSD-FME\nGW_NAME = {0xFFFEC0: 'PSTNI', 0xFFFEC1: 'PABXI', 0xFFFEC2:\
+      \ 'LINEI', 0xFFFEC3: 'IPI', 0xFFFEC4: 'SUPLI',\n           0xFFFEC5: 'SDMI(short-data\
+      \ gw)', 0xFFFEC6: 'REGI(registration gw)', 0xFFFEC7: 'MSI',\n           0xFFFEC9:\
+      \ 'DIVERTI', 0xFFFECA: 'TSI', 0xFFFECB: 'DISPATI', 0xFFFECC: 'STUNI', 0xFFFECD:\
+      \ 'AUTHI',\n           0xFFFECE: 'GPI', 0xFFFECF: 'KILLI', 0xFFFED0: 'PSTNDI',\
+      \ 0xFFFED1: 'PABXDI', 0xFFFED2: 'LINEDI',\n           0xFFFED3: 'DISPATDI',\
+      \ 0xFFFED4: 'ALLMSI', 0xFFFED5: 'IPDI', 0xFFFED6: 'DGNAI', 0xFFFED7: 'TATTSI',\n\
+      \           0xFFFFFD: 'ALLMSIDL', 0xFFFFFE: 'ALLMSIDZ', 0xFFFFFF: 'ALLMSID'}\n\
+      AHOY_KIND = {0: 'voice call', 1: 'voice call', 2: 'packet data', 3: 'packet\
+      \ data', 4: 'short data (UDT)',\n             5: 'short data (UDT)', 6: 'short-data\
+      \ polling', 7: 'status', 8: 'call diversion', 9: 'call answer',\n          \
+      \   10: 'duplex voice', 11: 'duplex data', 13: 'stun/revive/kill/auth', 14:\
+      \ 'registration/authentication',\n             15: 'cancel call'}\n\n\ndef addr(a):\n\
+      \    \"\"\"radio ID, or the name of a reserved system address\"\"\"\n    if\
+      \ a in GW_NAME:\n        return GW_NAME[a]\n    if a >= 0xFFFEC0:\n        return\
+      \ 'sys-%06X' % a\n    return str(a)\nDPF_NAME = {0: 'UDT', 1: 'response', 2:\
+      \ 'unconfirmed', 3: 'confirmed', 13: 'short defined',\n            14: 'short\
+      \ raw', 15: 'proprietary'}\nACT_NAME = {0: 'idle', 2: 'grp CSBK', 3: 'ind CSBK',\
+      \ 8: 'grp voice', 9: 'ind voice', 10: 'ind data',\n            11: 'grp data',\
+      \ 12: 'grp EMERG', 13: 'ind EMERG'}\n\n\ndef _fs_syms(fs):\n    return np.array([DIBIT_LEVEL[(fs\
+      \ >> (46 - 2 * i)) & 3] for i in range(24)])\n\n\ndef level_to_dibit(z):\n \
+      \   d = np.empty(len(z), dtype=np.uint8)\n    d[z >= 2.0] = 1\n    d[(z >= 0.0)\
+      \ & (z < 2.0)] = 0\n    d[(z < 0.0) & (z >= -2.0)] = 2\n    d[z < -2.0] = 3\n\
+      \    return d\n\n\ndef dibits_to_bits(d):\n    out = np.empty(2 * len(d), dtype=np.uint8)\n\
+      \    out[0::2] = (d >> 1) & 1\n    out[1::2] = d & 1\n    return out\n\n\ndef\
+      \ syms_to_llr(z):\n    \"\"\"soft bits (positive -> 1) from normalised 4-level\
+      \ symbols\"\"\"\n    out = np.empty(2 * len(z))\n    out[0::2] = -z\n    out[1::2]\
+      \ = np.abs(z) - 2.0\n    return out\n\n\ndef bits_to_int(bits):\n    v = 0\n\
+      \    for b in bits:\n        v = (v << 1) | int(b)\n    return v\n\n\ndef int_bits(v,\
+      \ n):\n    return [(v >> (n - 1 - i)) & 1 for i in range(n)]\n\n\nclass SoftCode(object):\n\
+      \    \"\"\"ML decoder of a short systematic block code (soft bits).\"\"\"\n\n\
+      \    def __init__(self, rows, k, n):\n        self.k, self.n = k, n\n      \
+      \  cw = np.zeros(1 << k, dtype=np.int64)\n        data = np.arange(1 << k)\n\
+      \        for i, r in enumerate(rows):\n            cw ^= ((data >> (k - 1 -\
+      \ i)) & 1) * r\n        self.cw = cw\n        sh = np.arange(n - 1, -1, -1)\n\
+      \        self.B = ((cw[:, None] >> sh[None, :]) & 1).astype(np.float32)\n  \
+      \      self.S = 2.0 * self.B - 1.0\n\n    def decode(self, llr):\n        \"\
+      \"\"returns (data, hard bit errors vs. chosen codeword)\"\"\"\n        i = int(np.argmax(self.B\
+      \ @ np.asarray(llr, np.float32)))\n        hard = (np.asarray(llr) > 0).astype(np.int64)\n\
+      \        return i, int(np.sum(hard != self.B[i]))\n\n\nclass HardHamming(object):\n\
+      \    \"\"\"single-error correcting systematic code from generator rows (data\
+      \ first)\"\"\"\n\n    def __init__(self, rows, k, n):\n        self.k, self.n,\
+      \ self.rows = k, n, rows\n        self.np_ = n - k\n        self.par = [r &\
+      \ ((1 << self.np_) - 1) for r in rows]\n        self.syn = {}\n        for pos\
+      \ in range(n):                       # bit position 0 = first (MSB)\n      \
+      \      if pos < k:\n                s = self.par[pos]\n            else:\n \
+      \               s = 1 << (n - 1 - pos)\n            self.syn[s] = pos\n\n  \
+      \  def parity(self, bits):\n        p = 0\n        for i in range(self.k):\n\
+      \            if bits[i]:\n                p ^= self.par[i]\n        return p\n\
+      \n    def correct(self, bits):\n        \"\"\"bits: list (modified in place).\
+      \ returns 0 ok, 1 corrected, -1 fail\"\"\"\n        rp = 0\n        for i in\
+      \ range(self.k, self.n):\n            rp = (rp << 1) | bits[i]\n        s =\
+      \ self.parity(bits) ^ rp\n        if s == 0:\n            return 0\n       \
+      \ pos = self.syn.get(s)\n        if pos is None:\n            return -1\n  \
+      \      bits[pos] ^= 1\n        return 1\n\n\nHAM15 = HardHamming(HAM15113_ROWS,\
+      \ 11, 15)\nHAM13 = HardHamming(HAM1393_ROWS, 9, 13)\nHAM16 = HardHamming(HAM16114_ROWS,\
+      \ 11, 16)\nHAM17 = HardHamming(HAM17123_ROWS, 12, 17)\nHAM15S = SoftCode(HAM15113_ROWS,\
+      \ 11, 15)\nHAM13S = SoftCode(HAM1393_ROWS, 9, 13)\nHAM16S = SoftCode(HAM16114_ROWS,\
+      \ 11, 16)\nSPC8S = SoftCode(tuple((0x80 >> i) | 1 for i in range(7)), 7, 8)\n\
+      HAM17S = SoftCode(HAM17123_ROWS, 12, 17)\nSLOTTYPE = SoftCode(GOLAY2087_ROWS,\
+      \ 8, 20)\nEMBCODE = SoftCode(QR1676_ROWS, 7, 16)\nTACT = SoftCode(TACT_ROWS,\
+      \ 4, 7)\n\n\ndef _softout(code, X, K=24, beta=2.0):\n    \"\"\"max-log soft\
+      \ output of a short block code for a batch of llr vectors X (m x n),\n    restricted\
+      \ to the K best codewords per vector (Chase/Pyndiah style). Bits with no\n \
+      \   competitor among them get +-beta*|best metric gap| style saturation.\"\"\
+      \"\n    corr = X @ code.S.T                               # (m x 2^k)\n    K\
+      \ = min(K, corr.shape[1])\n    idx = np.argpartition(-corr, K - 1, axis=1)[:,\
+      \ :K]\n    top = np.take_along_axis(corr, idx, axis=1)       # (m x K)\n   \
+      \ bits = code.B[idx]                                # (m x K x n)\n    big =\
+      \ top[:, :, None]\n    m1 = np.where(bits > 0, big, -np.inf).max(axis=1)\n \
+      \   m0 = np.where(bits > 0, -np.inf, big).max(axis=1)\n    out = 0.5 * (m1 -\
+      \ m0)\n    best = bits[np.arange(len(X)), np.argmax(top, axis=1)]\n    sat =\
+      \ beta * (2.0 * best - 1.0) * (np.abs(X).mean(axis=1, keepdims=True) + 1e-9)\n\
+      \    return np.where(np.isfinite(out), out, sat)\n\n\ndef tpc_decode(ch, row_code,\
+      \ nrows, col_code, iters=4, alpha=0.5):\n    \"\"\"iterative (turbo) product-code\
+      \ decoding, max-log. ch: (R x C) channel llrs,\n    rows [0:nrows] carry row_code,\
+      \ every column carries col_code. Returns hard bits.\"\"\"\n    ext_r = np.zeros_like(ch)\n\
+      \    ext_c = np.zeros_like(ch)\n    for _ in range(iters):\n        inp = ch\
+      \ + alpha * ext_c\n        ext_r[:nrows] = _softout(row_code, inp[:nrows]) -\
+      \ inp[:nrows]\n        inp = ch + alpha * ext_r\n        ext_c = (_softout(col_code,\
+      \ inp.T) - inp.T).T\n    return (ch + ext_r + ext_c > 0).astype(int)\n\n\ndef\
+      \ _bptc_hard(d):\n    for _ in range(5):\n        fixing = False\n        for\
+      \ c in range(15):\n            col = [d[c + 1 + 15 * r] for r in range(13)]\n\
+      \            if HAM13.correct(col) == 1:\n                for r in range(13):\n\
+      \                    d[c + 1 + 15 * r] = col[r]\n                fixing = True\n\
+      \        for r in range(9):\n            row = d[r * 15 + 1:r * 15 + 16]\n \
+      \           if HAM15.correct(row) == 1:\n                d[r * 15 + 1:r * 15\
+      \ + 16] = row\n                fixing = True\n        if not fixing:\n     \
+      \       break\n    for r in range(9):\n        if HAM15.correct(d[r * 15 + 1:r\
+      \ * 15 + 16]) != 0:\n            return False\n    for c in range(15):\n   \
+      \     if HAM13.correct([d[c + 1 + 15 * r] for r in range(13)]) != 0:\n     \
+      \       return False\n    return True\n\n\n_BPTC_IDX = np.array([(a * 181) %\
+      \ 196 for a in range(196)])\n\n\ndef bptc196_decode(llr196):\n    \"\"\"llr196:\
+      \ soft bits in received (interleaved) order, positive -> 1.\n    Soft turbo\
+      \ decoding of the 13x15 product code, then a hard clean-up / check.\n    Returns\
+      \ 96 data bits or None.\"\"\"\n    L = np.asarray(llr196, dtype=np.float64)[_BPTC_IDX]\n\
+      \    hard = tpc_decode(L[1:].reshape(13, 15), HAM15S, 9, HAM13S)\n    d = [0]\
+      \ + [int(v) for v in hard.reshape(-1)]\n    if not _bptc_hard(d):\n        d\
+      \ = [0] + [int(v) for v in (L[1:] > 0)]      # fall back to plain hard decoding\n\
+      \        if not _bptc_hard(d):\n            return None\n    out = d[4:12]\n\
+      \    for r in range(1, 9):\n        out += d[r * 15 + 1:r * 15 + 12]\n    return\
+      \ out\n\n\ndef crc_ccitt_dmr(bytes10):\n    \"\"\"CRC-CCITT as in MMDVMHost\
+      \ CCRC::addCCITT162 (poly 0x1021, init 0, inverted)\"\"\"\n    crc = 0\n   \
+      \ for b in bytes10:\n        crc ^= b << 8\n        for _ in range(8):\n   \
+      \         crc = ((crc << 1) ^ 0x1021) if crc & 0x8000 else (crc << 1)\n    \
+      \        crc &= 0xFFFF\n    return crc ^ 0xFFFF\n\n\ndef crc8_slc(bits28):\n\
+      \    \"\"\"CRC-8 poly x^8+x^2+x+1, init 0, over the 28 Short LC bits\"\"\"\n\
+      \    reg = 0\n    for b in bits28:\n        fb = ((reg >> 7) & 1) ^ b\n    \
+      \    reg = (reg << 1) & 0xFF\n        if fb:\n            reg ^= 0x07\n    return\
+      \ reg\n\n\n# ----------------------------------------------------------------\
+      \ RS(12,9) GF(256), 0x11D\n_E = [0] * 512\n_L = [0] * 256\n_x = 1\nfor _i in\
+      \ range(255):\n    _E[_i] = _x\n    _L[_x] = _i\n    _x <<= 1\n    if _x & 0x100:\n\
+      \        _x ^= 0x11D\nfor _i in range(255, 512):\n    _E[_i] = _E[_i - 255]\n\
+      \n\ndef _gm(a, b):\n    return 0 if (a == 0 or b == 0) else _E[_L[a] + _L[b]]\n\
+      \n\nRS_POLY = (64, 56, 14, 1)\n\n\ndef rs129_parity(msg9):\n    par = [0, 0,\
+      \ 0]\n    for i in range(9):\n        db = msg9[i] ^ par[2]\n        par[2]\
+      \ = par[1] ^ _gm(RS_POLY[2], db)\n        par[1] = par[0] ^ _gm(RS_POLY[1],\
+      \ db)\n        par[0] = _gm(RS_POLY[0], db)\n    return [par[2], par[1], par[0]]\n\
+      \n\ndef rs129_check(b12, mask):\n    \"\"\"returns corrected 9 data bytes or\
+      \ None (corrects one data byte)\"\"\"\n    rx = [b12[9] ^ ((mask >> 16) & 0xFF),\
+      \ b12[10] ^ ((mask >> 8) & 0xFF), b12[11] ^ (mask & 0xFF)]\n    msg = list(b12[:9])\n\
+      \    p = rs129_parity(msg)\n    if p == rx:\n        return msg\n    diff =\
+      \ sum(1 for i in range(3) if p[i] != rx[i])\n    if diff == 1:             \
+      \                  # error in one parity byte\n        return msg\n    for i\
+      \ in range(9):\n        orig = msg[i]\n        for v in range(256):\n      \
+      \      if v == orig:\n                continue\n            msg[i] = v\n   \
+      \         if rs129_parity(msg) == rx:\n                return msg\n        msg[i]\
+      \ = orig\n    return None\n\n\ndef bits_to_bytes(bits):\n    return [bits_to_int(bits[i:i\
+      \ + 8]) for i in range(0, len(bits) - 7, 8)]\n\n\n# ----------------------------------------------------------------\
+      \ formatting\ndef fmt_lc(b):\n    flco = b[0] & 0x3F\n    fid = b[1]\n    so\
+      \ = b[2]\n    dst = (b[3] << 16) | (b[4] << 8) | b[5]\n    src = (b[6] << 16)\
+      \ | (b[7] << 8) | b[8]\n    flags = ('' if not so & 0x80 else ' EMERGENCY')\
+      \ + ('' if not so & 0x40 else ' ENCRYPTED')\n    pf = ' (protected)' if b[0]\
+      \ & 0x80 else ''\n    if flco == 0x00:\n        return 'Group TG=%d SRC=%d%s%s'\
+      \ % (dst, src, flags, pf)\n    if flco == 0x03:\n        return 'Private TGT=%d\
+      \ SRC=%d%s%s' % (dst, src, flags, pf)\n    return 'LC FLCO=%02X FID=%02X(%s)\
+      \ %s' % (flco, fid, FID_NAME.get(fid, '?'),\n                              \
+      \                ''.join('%02X' % x for x in b))\n\n\ndef _field(v, start, n,\
+      \ total=96):\n    return (v >> (total - start - n)) & ((1 << n) - 1)\n\n\nPAR_NAME\
+      \ = {0: 'res', 1: 'A', 2: 'B', 3: 'AB'}\nANN_NAME = {0: 'Ann_WD_TSCC', 1: 'CallTimer_Parms',\
+      \ 2: 'Vote_Now', 3: 'Local_Time', 4: 'MassReg',\n            5: 'Chan_Freq',\
+      \ 6: 'Adjacent_Site', 7: 'Gen_Site_Params'}\n\n\ndef sys_ident(sc14, par=None):\n\
+      \    \"\"\"14-bit Tier III system identity code -> dict + text. Net/site are\
+      \ shown\n    +1 (ETSI user numbering, as DSD-FME does); raw field values in\
+      \ brackets.\"\"\"\n    model = (sc14 >> 12) & 3\n    nb, sb = {0: (9, 3), 1:\
+      \ (7, 5), 2: (4, 8), 3: (2, 10)}[model]\n    net = (sc14 >> sb) & ((1 << nb)\
+      \ - 1)\n    site = sc14 & ((1 << sb) - 1)\n    d = {'syscode': sc14, 'model':\
+      \ ['tiny', 'small', 'large', 'huge'][model], 'net': net + 1, 'site': site +\
+      \ 1}\n    txt = 'syscode %04X (%s) Net %d Site %d' % (sc14, d['model'], net\
+      \ + 1, site + 1)\n    if par is not None:\n        d['par'] = PAR_NAME[par]\n\
+      \        txt += ' Cat %s' % PAR_NAME[par]\n    return d, txt\n\n\ndef abs_channel(cont):\n\
+      \    \"\"\"MBC continuation with CDEFTYPE 0 (absolute channel parameters) ->\
+      \ (lpcn, rx_hz, tx_hz)\"\"\"\n    c = int.from_bytes(bytes(cont[:12]), 'big')\n\
+      \    if _field(c, 16, 4) != 0:\n        return None\n    lpcn = _field(c, 22,\
+      \ 12)\n    tx = _field(c, 34, 10) * 1000000 + _field(c, 44, 13) * 125\n    rx\
+      \ = _field(c, 57, 10) * 1000000 + _field(c, 67, 13) * 125\n    return lpcn,\
+      \ rx, tx\n\n\ndef parse_csbk(b, cont=None):\n    \"\"\"b: 12 CSBK / MBC-header\
+      \ bytes, cont: first MBC continuation (12 bytes) or None.\n    Returns (text,\
+      \ info dict). Field positions follow ETSI TS 102 361-4 as implemented\n    in\
+      \ DSD-FME (dmr_csbk.c); the C_BCAST layout was confirmed on a real Tier III\
+      \ site.\"\"\"\n    v = int.from_bytes(bytes(b[:12]), 'big')\n    op = b[0] &\
+      \ 0x3F\n    fid = b[1]\n    info = {'op': op, 'fid': fid}\n    std = fid ==\
+      \ 0x00 or (fid == 0x58 and op == 0x28)          # Tait sends C_BCAST with its\
+      \ own FID\n    fids = '' if fid == 0 else ' FID=%02X(%s)' % (fid, FID_NAME.get(fid,\
+      \ '?'))\n    name = CSBKO_NAME.get(op, 'OP_%02X' % op) if std else 'OP_%02X'\
+      \ % op\n    tgt = _field(v, 32, 24)\n    src = _field(v, 56, 24)\n    if std\
+      \ and op == 0x19:                                      # C_ALOHA\n        d,\
+      \ st = sys_ident(_field(v, 40, 14), _field(v, 54, 2))\n        info.update(kind='aloha',\
+      \ site=d, reg=_field(v, 35, 1))\n        return ('C_ALOHA %s reg=%d mask=%d\
+      \ nrandwait=%d backoff=%d%s' % (\n            st, _field(v, 35, 1), _field(v,\
+      \ 24, 5), _field(v, 31, 4), _field(v, 36, 4), fids), info)\n    if std and op\
+      \ == 0x28:                                      # C_BCAST\n        at = _field(v,\
+      \ 16, 5)\n        p1 = _field(v, 21, 14)\n        p2 = _field(v, 56, 24)\n \
+      \       d, st = sys_ident(_field(v, 40, 14), _field(v, 54, 2))\n        info.update(kind='bcast',\
+      \ ann=at, site=d, reg=_field(v, 35, 1))\n        head = 'C_BCAST %s' % ANN_NAME.get(at,\
+      \ 'type %d' % at)\n        lpcn = p2 & 0xFFF\n        ch = abs_channel(cont)\
+      \ if cont is not None else None\n        if at == 0:\n            c1, c2 = (p2\
+      \ >> 12) & 0xFFF, p2 & 0xFFF\n            txt = '%s: TSCC LPCN %d (CC%d, %s),\
+      \ LPCN %d (CC%d, %s)' % (\n                head, c1, (p1 >> 6) & 0xF, 'remove'\
+      \ if p1 & 2 else 'add',\n                c2, (p1 >> 2) & 0xF, 'remove' if p1\
+      \ & 1 else 'add')\n            info['tscc'] = [c1, c2]\n        elif at in (2,\
+      \ 6):\n            nd, nst = sys_ident(p1)\n            ava, con = (p2 >> 23)\
+      \ & 1, (p2 >> 22) & 1\n            txt = '%s: %s, LPCN %s%s' % (head, nst, 'absolute'\
+      \ if lpcn == 0xFFF else lpcn,\n                                         (''\
+      \ if not ava else (' (online)' if con else ' (offline)')))\n            info.update(neigh=nd,\
+      \ lpcn=lpcn)\n            if ch:\n                info['chan'] = ch\n      \
+      \          txt += ' -> RX %.5f / TX %.5f MHz' % (ch[1] / 1e6, ch[2] / 1e6)\n\
+      \        elif at == 5:\n            txt = '%s: LPCN %d' % (head, lpcn)\n   \
+      \         info['lpcn'] = lpcn\n            if ch:\n                info['chan']\
+      \ = (lpcn,) + ch[1:]\n                txt += ' = RX %.5f MHz / TX %.5f MHz'\
+      \ % (ch[1] / 1e6, ch[2] / 1e6)\n            else:\n                txt += '\
+      \ (frequency block missing)'\n        elif at == 3:\n            txt = '%s:\
+      \ %02d:%02d:%02d UTC, day %d month %d, offset %s%dh' % (\n                head,\
+      \ (p2 >> 19) & 0x1F, (p2 >> 13) & 0x3F, (p2 >> 7) & 0x3F, (p1 >> 9) & 0x1F,\n\
+      \                (p1 >> 5) & 0xF, '-' if p1 & 1 else '+', (p1 >> 1) & 0xF)\n\
+      \        elif at == 4:\n            txt = '%s: reg window %d, aloha mask %d,\
+      \ target %d' % (head, (p1 >> 5) & 0xF, p1 & 0x1F, p2)\n        elif at == 7:\n\
+      \            txt = '%s: hibernate=%d tg-on-reg=%d' % (head, (p2 >> 22) & 1,\
+      \ (p2 >> 7) & 1)\n        else:\n            txt = '%s: parms1=%04X parms2=%06X'\
+      \ % (head, p1, p2)\n        return txt + ' [%s reg=%d]%s' % (st, _field(v, 35,\
+      \ 1), fids), info\n    if std and 0x30 <= op <= 0x38 and op != 0x38:       \
+      \       # channel grants\n        lpcn = _field(v, 16, 12)\n        ts = _field(v,\
+      \ 28, 1) + 1\n        emerg = _field(v, 30, 1)\n        info.update(kind='grant',\
+      \ lpcn=lpcn, ts=ts, tgt=tgt, src=src, group=op in (0x31, 0x32, 0x34, 0x38))\n\
+      \        txt = '%s LPCN %s TS%d %s=%d SRC=%d%s' % (name, 'absolute' if lpcn\
+      \ == 0xFFF else lpcn, ts,\n                                                'TG'\
+      \ if info['group'] else 'TGT', tgt, src,\n                                 \
+      \               ' EMERGENCY' if emerg else '')\n        if lpcn == 0xFFF and\
+      \ cont is not None:\n            ch = abs_channel(cont)\n            if ch:\n\
+      \                info['chan'] = ch\n                txt += ' -> RX %.5f MHz'\
+      \ % (ch[1] / 1e6)\n        return txt + fids, info\n    if std and op == 0x1C:\
+      \                                      # C_AHOY\n        sk = _field(v, 28,\
+      \ 4)\n        info.update(kind='ahoy', tgt=tgt, src=src)\n        return 'C_AHOY\
+      \ %s %s %s TGT=%s SRC=%s' % (AHOY_KIND.get(sk, 'kind %d' % sk),\n          \
+      \                                     'grp' if _field(v, 25, 1) else 'ind',\n\
+      \                                               '(ambient listening)' if _field(v,\
+      \ 24, 1) else '',\n                                               addr(tgt),\
+      \ addr(src)), info\n    if std and op in (0x20, 0x21, 0x22, 0x23):         \
+      \         # acknowledgements\n        info.update(kind='ack', tgt=tgt, src=src)\n\
+      \        return '%s resp=%02X reason=%02X TGT=%s SRC=%s' % (name, _field(v,\
+      \ 16, 7), _field(v, 23, 8),\n                                              \
+      \           addr(tgt), addr(src)), info\n    if std and op == 0x3D:\n      \
+      \  info.update(kind='preamble', tgt=tgt, src=src, group=bool(b[2] & 0x40))\n\
+      \        return 'PREAMBLE %s %s TGT=%d SRC=%d blocks=%d' % (\n            'data'\
+      \ if b[2] & 0x80 else 'csbk', 'grp' if b[2] & 0x40 else 'ind', tgt, src, b[3]),\
+      \ info\n    if std and op == 0x2E:\n        info.update(kind='clear', tgt=tgt,\
+      \ src=src)\n        return 'P_CLEAR (call cleared) TGT=%d SRC=%d' % (tgt, src),\
+      \ info\n    if std and op == 0x2F:\n        return 'P_PROTECT %s kind=%d TGT=%d\
+      \ SRC=%d' % ('grp' if _field(v, 31, 1) else 'ind',\n                       \
+      \                              _field(v, 28, 3), tgt, src), info\n    if std\
+      \ and op in (0x04, 0x05, 0x1E, 0x1F, 0x24, 0x26, 0x27, 0x2A, 0x38):\n      \
+      \  info.update(kind='addr', tgt=tgt, src=src)\n        return '%s TGT=%s SRC=%s'\
+      \ % (name, addr(tgt), addr(src)), info\n    if fid == 0x10 and op == 0x3B:\n\
+      \        return 'CapPlus SYS rest=%d site=%d' % (b[2] & 0x1F, (b[3] >> 3) &\
+      \ 0xF), info\n    return '%s%s %s' % (name, fids, ''.join('%02X' % x for x in\
+      \ b[2:10])), info\n\n\ndef fmt_slc(slco, d):\n    d0, d1, d2 = (d >> 16) & 0xFF,\
+      \ (d >> 8) & 0xFF, d & 0xFF\n    if slco == 0:\n        return None        \
+      \                           # null message\n    if slco == 1:\n        return\
+      \ 'SLC Activity TS1=%s TS2=%s hash %02X/%02X' % (\n            ACT_NAME.get(d0\
+      \ >> 4, '%X' % (d0 >> 4)), ACT_NAME.get(d0 & 0xF, '%X' % (d0 & 0xF)), d1, d2)\n\
+      \    if slco in (2, 3):\n        kind = 'control ch (C_SYS_Parms)' if slco ==\
+      \ 2 else 'payload ch (P_SYS_Parms)'\n        extra = ' reg=%d' % ((d >> 9) &\
+      \ 1) if slco == 2 else ''   # CSC (a counter) left out: it would defeat dedup\n\
+      \        return 'SLC Tier III %s %s%s' % (kind, sys_ident(d >> 10)[1], extra)\n\
+      \    if slco in (9, 10):\n        return 'SLC Connect Plus %s net=%d site=%d'\
+      \ % ('control ch' if slco == 10 else 'voice ch',\n                         \
+      \                             (d0 << 4) | (d1 >> 4), ((d1 & 0xF) << 4) | (d2\
+      \ >> 4))\n    if slco == 15:\n        return 'SLC Capacity Plus rest channel\
+      \ LCN=%d' % d1\n    return 'SLC SLCO=%d data=%06X' % (slco, d)\n\n\n# ============================================================================\n\
+      #  AMBE+2 voice decoding through mbelib-neo / mbelib (loaded with ctypes)\n\
+      # ============================================================================\n\
+      import ctypes\nimport ctypes.util\nimport os\n\n# DMR AMBE interleave schedule\
+      \ (ETSI TS 102 361-1; table as in DSD / DSD-FME):\n# dibit i of a 72-bit AMBE\
+      \ frame -> msb to ambe_fr[rW][rX], lsb to ambe_fr[rY][rZ]\n_rW = (0, 1, 0, 1,\
+      \ 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 2, 0, 2, 0, 2, 0,\
+      \ 2, 0, 2, 0, 2, 0, 2)\n_rX = (23, 10, 22, 9, 21, 8, 20, 7, 19, 6, 18, 5, 17,\
+      \ 4, 16, 3, 15, 2, 14, 1, 13, 0, 12, 10, 11, 9, 10, 8, 9, 7,\n       8, 6, 7,\
+      \ 5, 6, 4)\n_rY = (0, 2, 0, 2, 0, 2, 0, 2, 0, 3, 0, 3, 1, 3, 1, 3, 1, 3, 1,\
+      \ 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3)\n_rZ = (5, 3, 4, 2, 3,\
+      \ 1, 2, 0, 1, 13, 0, 12, 22, 11, 21, 10, 20, 9, 19, 8, 18, 7, 17, 6, 16, 5,\
+      \ 15, 4, 14, 3,\n       13, 2, 12, 1, 11, 0)\nAMBE_FR_IDX = np.zeros(72, dtype=np.int64)\
+      \          # frame bit k -> flat index row*24+col\nfor _i in range(36):\n  \
+      \  AMBE_FR_IDX[2 * _i] = _rW[_i] * 24 + _rX[_i]\n    AMBE_FR_IDX[2 * _i + 1]\
+      \ = _rY[_i] * 24 + _rZ[_i]\n\n\ndef burst_ambe_llrs(llr264):\n    \"\"\"voice\
+      \ burst (264 soft bits, sync/EMB in 108..155) -> three 72-bit AMBE frames\"\"\
+      \"\n    return (llr264[0:72], np.concatenate([llr264[72:108], llr264[156:192]]),\
+      \ llr264[192:264])\n\n\n_LIB_NAMES = ('mbe-neo.dll', 'libmbe-neo.dll', 'libmbe-neo.so',\
+      \ 'libmbe-neo.so.2', 'libmbe-neo.dylib',\n              'mbe.dll', 'libmbe.dll',\
+      \ 'libmbe.so', 'libmbe.so.1', 'libmbe.dylib')\n\n\ndef load_mbelib(path=''):\n\
+      \    \"\"\"Returns (ctypes library, description) or (None, reason). `path` may\
+      \ be a file or folder.\"\"\"\n    cands = []\n    if path:\n        if os.path.isdir(path):\n\
+      \            cands += [os.path.join(path, n) for n in _LIB_NAMES]\n        else:\n\
+      \            cands.append(path)\n    here = [os.getcwd()]\n    try:\n      \
+      \  here.append(os.path.dirname(os.path.abspath(__file__)))\n    except NameError:\n\
+      \        pass\n    for d in here:\n        cands += [os.path.join(d, n) for\
+      \ n in _LIB_NAMES]\n    for n in ('mbe-neo', 'mbe'):\n        f = ctypes.util.find_library(n)\n\
+      \        if f:\n            cands.append(f)\n    tried = []\n    for c in cands:\n\
+      \        if os.path.sep in c and not os.path.exists(c):\n            continue\n\
+      \        try:\n            if hasattr(os, 'add_dll_directory') and os.path.isabs(c):\n\
+      \                try:\n                    os.add_dll_directory(os.path.dirname(c))\
+      \       # dependent DLLs next to it\n                except OSError:\n     \
+      \               pass\n            lib = ctypes.CDLL(c)\n            if not hasattr(lib,\
+      \ 'mbe_processAmbe3600x2450Framef'):\n                tried.append('%s (no AMBE+2\
+      \ decoder)' % c)\n                continue\n            return lib, c\n    \
+      \    except OSError as e:\n            tried.append('%s (%s)' % (c, e))\n  \
+      \  return None, ('not found; tried: ' + '; '.join(tried)) if tried else 'not\
+      \ found (no candidate files)'\n\n\nclass AmbeVocoder(object):\n    \"\"\"Thin\
+      \ ctypes wrapper. mbelib-neo 2.x: soft-decision frames + result struct.\n  \
+      \  Classic mbelib / mbelib-neo 1.x: hard bits, (errs, errs2, err_str) signature.\"\
+      \"\"\n    PARMS_BYTES = 16384        # opaque mbe_parms storage (real size ~2.5\
+      \ kB; never read here)\n\n    def __init__(self, lib, uvquality=3):\n      \
+      \  self.lib = lib\n        self.neo2 = hasattr(lib, 'mbe_initProcessResult')\n\
+      \        self.uvq = int(uvquality)\n        f = lib.mbe_processAmbe3600x2450Framef\n\
+      \        if self.neo2 and hasattr(lib, 'mbe_processAmbe3600x2450SoftFramef'):\n\
+      \            self.soft = True\n            fs = lib.mbe_processAmbe3600x2450SoftFramef\n\
+      \            fs.restype = ctypes.c_int\n            fs.argtypes = [ctypes.c_void_p]\
+      \ * 7\n            self._fn = fs\n        else:\n            self.soft = False\n\
+      \            f.restype = ctypes.c_int if self.neo2 else None\n            self._fn\
+      \ = f\n        lib.mbe_initMbeParms.restype = None\n        lib.mbe_initMbeParms.argtypes\
+      \ = [ctypes.c_void_p] * 3\n        self.version = 'mbelib-neo 2.x (soft decision)'\
+      \ if self.soft else (\n            'mbelib-neo 2.x (hard)' if self.neo2 else\
+      \ 'mbelib / mbelib-neo 1.x (hard decision)')\n\n    def new_state(self):\n \
+      \       st = [ctypes.create_string_buffer(self.PARMS_BYTES) for _ in range(3)]\n\
+      \        self.lib.mbe_initMbeParms(st[0], st[1], st[2])\n        return st\n\
+      \n    def decode(self, state, llr72):\n        \"\"\"one 72-bit AMBE+2 frame\
+      \ (soft bits, positive -> 1) -> 160 float samples (8 kHz,\n        roughly +-1\
+      \ full scale) and the error count reported by the library\"\"\"\n        llr72\
+      \ = np.asarray(llr72, dtype=np.float64)\n        bits = (llr72 > 0).astype(np.uint8)\n\
+      \        out = (ctypes.c_float * 160)()\n        amb_d = ctypes.create_string_buffer(49)\n\
+      \        if self.soft:\n            fr = np.zeros((96, 2), dtype=np.uint8)\n\
+      \            fr[AMBE_FR_IDX, 0] = bits\n            fr[AMBE_FR_IDX, 1] = np.clip(np.abs(llr72)\
+      \ * 255.0, 1, 255).astype(np.uint8)\n            res = ctypes.create_string_buffer(64)\n\
+      \            errs = self._fn(out, res, fr.tobytes(), amb_d, state[0], state[1],\
+      \ state[2])\n        else:\n            fr = np.zeros(96, dtype=np.uint8)\n\
+      \            fr[AMBE_FR_IDX] = bits\n            if self.neo2:\n           \
+      \     res = ctypes.create_string_buffer(64)\n                errs = self._fn(out,\
+      \ res, fr.tobytes(), amb_d, state[0], state[1], state[2])\n            else:\n\
+      \                e1, e2 = ctypes.c_int(0), ctypes.c_int(0)\n               \
+      \ es = ctypes.create_string_buffer(64)\n                self._fn(out, ctypes.byref(e1),\
+      \ ctypes.byref(e2), es, fr.tobytes(), amb_d,\n                         state[0],\
+      \ state[1], state[2], ctypes.c_int(self.uvq))\n                errs = e1.value\
+      \ + e2.value\n        return np.frombuffer(out, dtype=np.float32).copy() * (7.0\
+      \ / 32768.0), errs\n\n\n# ============================================================================\n\
+      #  GNU Radio block\n# ============================================================================\n\
+      _PRINT_LOCK = threading.Lock()\n\n\ndef _say(line):\n    with _PRINT_LOCK:\n\
+      \        sys.stdout.write(line + '\\n')\n        sys.stdout.flush()\n\n\nclass\
+      \ blk(gr.decim_block):\n    \"\"\"DMR decoder: CACH/SLC, CSBK, voice LC, embedded\
+      \ LC, data headers -> text; AMBE+2 voice -> audio\"\"\"\n\n    def __init__(self,\
+      \ sps=10, sync_thresh=0.80, color_code=-1, dedup_s=10.0, show_data=True,\n \
+      \                invert=False, stats_every=10.0, rf_hz=0.0, plan_ref_lpcn=0,\
+      \ plan_ref_hz=0.0,\n                 plan_step_hz=12500.0, audio_slot=0, mbelib_path='',\
+      \ audio_delay=0.25):\n        if (int(sps) * 3) % 5:\n            raise ValueError('sps\
+      \ must be a multiple of 5 (input rate 4800*sps -> 8 kHz audio)')\n        self.adec\
+      \ = int(sps) * 3 // 5                 # input samples per 8 kHz audio sample\n\
+      \        gr.decim_block.__init__(self, name='DMR Decoder', in_sig=[np.float32],\n\
+      \                                out_sig=[np.float32, np.float32], decim=self.adec)\n\
+      \        self.message_port_register_out(pmt.intern('out'))\n        self.sps\
+      \ = int(sps)\n        self.L = 23 * self.sps + 1                    # samples\
+      \ spanned by a 24-symbol sync\n        self.thr = float(sync_thresh)\n     \
+      \   self.cc_filter = int(color_code)\n        self.dedup_s = float(dedup_s)\n\
+      \        self.show_data = bool(show_data)\n        self.pol = -1.0 if invert\
+      \ else 1.0\n        self.stats_every = float(stats_every)\n        self.tm =\
+      \ {}\n        self.tsyms = {}\n        for k, v in SYNCS.items():\n        \
+      \    s = _fs_syms(v)\n            self.tsyms[k] = s\n            t = s - s.mean()\n\
+      \            self.tm[k] = t / np.sqrt(np.sum(t * t))\n        t = _fs_syms(P25_FS)\n\
+      \        t = t - t.mean()\n        self.tm_p25 = t / np.sqrt(np.sum(t * t))\n\
+      \        self.buf = np.zeros(0)\n        self.base = 0                  # absolute\
+      \ sample index of buf[0]\n        self.scan = 0                  # first absolute\
+      \ window start not yet finalised\n        self.jobs = []                 # (abs\
+      \ sync pos [samples, float], kind, voice, n, fit)\n        self.done = {}  \
+      \               # kind -> list of recent hit positions\n        self.fit = None\
+      \                # last (g, o)\n        self.phase = 0.0               # last\
+      \ sync timing, samples mod sps (display output)\n        self.last_bs = None\n\
+      \        self.grid = None               # abs sample position of the next CACH\
+      \ grid point\n        self.slc_bits = []\n        self.emb = {}\n        self.seen\
+      \ = {}\n        self.n = {'bursts': 0, 'bad_slot_type': 0, 'bptc_fail': 0, 'crc_fail':\
+      \ 0, 'voice': 0,\n                  'idle': 0, 'p25': 0, 'offgrid': 0}\n   \
+      \     self.ccs = {}\n        self.grid_ok, self.cand = False, []\n        self.t_last\
+      \ = time.time()\n        self._spc4 = SoftCode((0b1001, 0b0101, 0b0011), 3,\
+      \ 4)\n        # ---- channel picture for the status panel\n        self.rf_hz\
+      \ = float(rf_hz)\n        self.plan_ref_lpcn = int(plan_ref_lpcn)\n        self.plan_ref_hz\
+      \ = float(plan_ref_hz)\n        self.plan_step_hz = float(plan_step_hz)\n  \
+      \      self._rf_seen = self.rf_hz\n        self.t0 = time.time()\n        #\
+      \ ---- voice\n        self.audio_slot = int(audio_slot)             # 0 = all\
+      \ slots, 1 = TS1, 2 = TS2\n        self.audio_delay = float(audio_delay)\n \
+      \       self.voc, self.voc_msg = None, ''\n        lib, where = load_mbelib(str(mbelib_path))\n\
+      \        if lib is not None:\n            try:\n                self.voc = AmbeVocoder(lib)\n\
+      \                self.voc_gain = 1.0 if self.voc.neo2 else 0.33      # classic\
+      \ mbelib is ~3x louder\n                self.voc_msg = '%s  [%s]' % (self.voc.version,\
+      \ where)\n            except Exception as e:                    # wrong / incompatible\
+      \ library\n                self.voc_msg = 'library found but unusable: %s (%s)'\
+      \ % (where, e)\n        else:\n            self.voc_msg = 'no AMBE+2 vocoder\
+      \ (mbe-neo.dll / mbelib) %s' % where\n        _say('[DMR] voice: ' + (self.voc_msg\
+      \ if self.voc else self.voc_msg + '  -> audio output stays silent'))\n     \
+      \   self.vstate = {}                              # slot -> mbelib state triplet\n\
+      \        self.vlast = {}                               # slot -> sample position\
+      \ of last voice burst\n        # audio timeline: each burst's 60 ms is placed\
+      \ audio_delay after the burst itself, so the\n        # output is paced by the\
+      \ signal (pauses and lost bursts keep their real length)\n        self.abuf\
+      \ = np.zeros(int(8000 * (self.audio_delay + 1.0)), dtype=np.float32)\n     \
+      \   self.abase = 0                                # output sample index of abuf[0]\n\
+      \        self.alate = 0\n        try:                                      \
+      \    # bound the chunk size: the delay must cover it\n            self.set_max_noutput_items(max(80,\
+      \ int(8000 * self.audio_delay * 0.4)))\n        except Exception:\n        \
+      \    pass\n        self.enc = {}                                 # slot -> current\
+      \ call encrypted\n        self.vstats = {}                              # slot\
+      \ -> [frames, errors]\n        self.enc_note = {}\n        self.mbc = {}   \
+      \               # slot key -> [header bytes, continuation list, time]\n    \
+      \    self.site = None               # (text, time) of this site's identity\n\
+      \        self.chan_kind = {}            # description -> last time seen\n  \
+      \      self.fids = {}\n        self.slot_act = {}             # 'TS1'/'TS2'/...\
+      \ -> (time, text)\n        self.chmap = {}                # LPCN -> (rx_hz,\
+      \ tx_hz)\n        self.neigh = {}                # syscode -> (text, lpcn, time)\n\
+      \        self.calls = {}                # (kind, tg/target, src) -> [first,\
+      \ last, where]\n        self.offs = []                 # recent (off_hz, dev_hz)\n\
+      \n    # ------------------------------------------------------------------ output\n\
+      \    def _emit(self, key, msg, tail=''):\n        now = time.time()\n      \
+      \  if self.dedup_s > 0:\n            last = self.seen.get(key + msg)\n     \
+      \       self.seen[key + msg] = now\n            if last is not None and now\
+      \ - last < self.dedup_s:\n                return\n            if len(self.seen)\
+      \ > 5000:\n                self.seen = {k: v for k, v in self.seen.items() if\
+      \ now - v < self.dedup_s}\n        line = '[DMR %s] %s %s%s' % (time.strftime('%H:%M:%S'),\
+      \ key, msg, tail)\n        _say(line)\n        b = np.frombuffer((line + '\\\
+      n').encode('ascii', 'replace'), dtype=np.uint8)\n        self.message_port_pub(pmt.intern('out'),\
+      \ pmt.cons(pmt.PMT_NIL, pmt.init_u8vector(len(b), b.tolist())))\n\n    # ------------------------------------------------------------------\
+      \ sampling\n    def _rho(self, seg, tmpl):\n        \"\"\"normalised correlation\
+      \ of every sample offset with a 24-symbol template\"\"\"\n        w = np.lib.stride_tricks.sliding_window_view(seg,\
+      \ self.L)[:, ::self.sps]\n        wc = w - w.mean(axis=1, keepdims=True)\n \
+      \       den = np.sqrt(np.einsum('ij,ij->i', wc, wc)) + 1e-12\n        return\
+      \ (wc @ tmpl) / den\n\n    def _syms(self, pos, s0, cnt):\n        \"\"\"symbols\
+      \ at absolute sample position pos + sps*(s0 .. s0+cnt-1), cubic interp.\"\"\"\
+      \n        t = pos - self.base + self.sps * (s0 + np.arange(cnt))\n        i\
+      \ = np.floor(t).astype(int)\n        f = t - i\n        if i[0] - 1 < 0 or i[-1]\
+      \ + 2 >= len(self.buf):\n            return None\n        b = self.buf\n   \
+      \     ym1, y0, y1, y2 = b[i - 1], b[i], b[i + 1], b[i + 2]\n        # Catmull-Rom\n\
+      \        return y0 + 0.5 * f * (y1 - ym1 + f * (2 * ym1 - 5 * y0 + 4 * y1 -\
+      \ y2 + f * (3 * (y0 - y1) + y2 - ym1)))\n\n    # ------------------------------------------------------------------\
+      \ CACH\n    @staticmethod\n    def _cach(y, g, o):\n        \"\"\"y: 144 symbols\
+      \ (index 66 = sync start). Returns (slot 0/1, lcss, payload llrs) or None\"\"\
+      \"\n        z = (y[0:12] - o) / g\n        llr = syms_to_llr(z)\n        tact,\
+      \ nerr = TACT.decode(llr[list(CACH_TACT_POS)])\n        if nerr > 1:\n     \
+      \       return None\n        return (tact >> 2) & 1, tact & 3, [float(llr[p])\
+      \ for p in CACH_PAYLOAD_POS]\n\n    def _slc_feed(self, lcss, payload):\n  \
+      \      if lcss == 1:\n            self.slc_bits = list(payload)\n        elif\
+      \ lcss == 3:\n            if self.slc_bits and len(self.slc_bits) < 51:\n  \
+      \              self.slc_bits += payload\n            else:\n               \
+      \ self.slc_bits = []\n        elif lcss == 2:\n            if len(self.slc_bits)\
+      \ == 51:\n                self.slc_bits += payload\n                self._slc_decode(self.slc_bits)\n\
+      \            self.slc_bits = []\n        else:\n            self.slc_bits =\
+      \ []\n\n    def _slc_decode(self, raw):\n        L = np.zeros(68)\n        for\
+      \ a in range(67):\n            L[a] = raw[(a * 4) % 67]\n        L[67] = raw[67]\n\
+      \        d = [int(v) for v in tpc_decode(L.reshape(4, 17), HAM17S, 3, self._spc4).reshape(-1)]\n\
+      \        for r in range(3):\n            if HAM17.correct(d[17 * r:17 * r +\
+      \ 17]) != 0:\n                return\n        for c in range(17):\n        \
+      \    if d[51 + c] != (d[c] ^ d[17 + c] ^ d[34 + c]):\n                return\n\
+      \        bits = d[0:12] + d[17:29] + d[34:46]\n        if crc8_slc(bits[:28])\
+      \ != bits_to_int(bits[28:36]):\n            return\n        slco, dat = bits_to_int(bits[:4]),\
+      \ bits_to_int(bits[4:28])\n        txt = fmt_slc(slco, dat)\n        if txt:\n\
+      \            self._emit('CACH', txt)\n        now = time.time()\n        if\
+      \ slco in (2, 3):\n            if not (self.site and now - self.site[1] < 5):\
+      \   # prefer ALOHA text (has Cat)\n                self.site = (sys_ident(dat\
+      \ >> 10)[1], now, dat >> 10)\n            self._kind('Tier III ' + ('CONTROL\
+      \ channel (TSCC)' if slco == 2 else 'traffic (payload) channel'))\n        elif\
+      \ slco in (9, 10):\n            self._kind('Connect Plus ' + ('control' if slco\
+      \ == 10 else 'voice') + ' channel')\n        elif slco == 15:\n            self._kind('Capacity\
+      \ Plus')\n        elif slco == 1:\n            a1, a2 = dat >> 20, (dat >> 16)\
+      \ & 0xF\n            self._act('TS1', 'SLC activity: ' + ACT_NAME.get(a1, '%X'\
+      \ % a1), weak=True)\n            self._act('TS2', 'SLC activity: ' + ACT_NAME.get(a2,\
+      \ '%X' % a2), weak=True)\n\n    def _grid_run(self, end_abs):\n        \"\"\"\
+      walk the repeater burst grid (every 144 symbols) collecting Short LC\"\"\"\n\
+      \        if self.grid is None or self.fit is None:\n            return\n   \
+      \     g, o = self.fit\n        step = 144 * self.sps\n        while self.grid\
+      \ + 80 * self.sps <= end_abs:\n            if self.grid - self.last_bs > 34\
+      \ * step:          # repeater gone (> ~1 s)\n                self.grid = None\n\
+      \                return\n            y = self._syms(self.grid, -66, 144)\n \
+      \           r = self._cach(y, g, o) if y is not None else None\n           \
+      \ if r is not None:\n                self._slc_feed(r[1], r[2])\n          \
+      \  else:\n                self.slc_bits = []\n            self.grid += step\n\
+      \n    # ------------------------------------------------------------------ bursts\n\
+      \    def _fit(self, y, kind, voice):\n        t = self.tsyms[kind] * (1.0 if\
+      \ voice else -1.0)       # g < 0 if the receiver inverts\n        A = np.column_stack([t,\
+      \ np.ones(24)])\n        g, o = np.linalg.lstsq(A, y[66:90], rcond=None)[0]\n\
+      \        if abs(g) < 1e-6:\n            return None\n        yb = y[12:144]\n\
+      \        lev = DIBIT_LEVEL[level_to_dibit((yb - o) / g)]\n        A = np.column_stack([lev,\
+      \ np.ones(len(lev))])\n        g2, o2 = np.linalg.lstsq(A, yb, rcond=None)[0]\n\
+      \        if abs(g2) > 0.5 * abs(g):\n            return g2, o2\n        return\
+      \ g, o\n\n    def _slot_key(self, y, kind, g, o):\n        if kind == 'BS':\n\
+      \            r = self._cach(y, g, o)\n            return 'TS%d' % (r[0] + 1)\
+      \ if r is not None else 'TS?'\n        return {'DM1': 'DM-TS1', 'DM2': 'DM-TS2'}.get(kind,\
+      \ 'MS')\n\n    def _data_burst(self, y, kind, g, o):\n        z = (y[12:144]\
+      \ - o) / g\n        llr = syms_to_llr(z)\n        st, nerr = SLOTTYPE.decode(np.concatenate([llr[98:108],\
+      \ llr[156:166]]))\n        if nerr > 3:\n            self.n['bad_slot_type']\
+      \ += 1\n            return\n        cc, dt = st >> 4, st & 0xF\n        if self.cc_filter\
+      \ >= 0 and cc != self.cc_filter:\n            return\n        if nerr == 0:\
+      \                                # count colour codes from clean slot types\
+      \ only\n            self.ccs[cc] = self.ccs.get(cc, 0) + 1\n        slot = self._slot_key(y,\
+      \ kind, g, o)\n        key = '%s CC%d' % (slot, cc)\n        tail = '  (dev=%.0fHz\
+      \ off=%+.0fHz)' % (abs(g) * 1944.0, o * 648.0)\n        self.offs = (self.offs\
+      \ + [(o * 648.0, abs(g) * 1944.0)])[-50:]\n        self._kind({'BS': 'repeater\
+      \ / base station (BS sync)', 'MS': 'mobile / talk-around (MS sync)'}.get(\n\
+      \            kind, 'direct mode (DM sync)'))\n        if dt == 9 and nerr ==\
+      \ 0:\n            self._act(slot, 'idle')\n        if dt == 9:\n           \
+      \ self.n['idle'] += 1\n            return\n        if dt in (7, 8, 10, 5) and\
+      \ not self.show_data:\n            return\n        info = np.concatenate([llr[0:98],\
+      \ llr[166:264]])\n        if dt == 8:\n            self._emit(key, 'DATA 3/4\
+      \ block')\n            return\n        if dt in (11, 12, 13, 14, 15):\n    \
+      \        self._emit(key, 'slot type %d (reserved)' % dt, tail)\n           \
+      \ return\n        bits = bptc196_decode(info)\n        if bits is None:\n  \
+      \          self.n['bptc_fail'] += 1\n            return\n        b = bits_to_bytes(bits)\n\
+      \        if dt in RS_MASK:\n            lc = rs129_check(b, RS_MASK[dt])\n \
+      \           if lc is None:\n                self.n['crc_fail'] += 1\n      \
+      \          return\n            txt = fmt_lc(lc)\n            if dt == 1 and\
+      \ (lc[0] & 0x3F) in (0x00, 0x03):\n                self.enc[slot] = bool(lc[2]\
+      \ & 0x40)\n                self.enc_note[slot] = False\n            elif dt\
+      \ == 2:\n                self.enc[slot] = False\n            self._emit(key,\
+      \ '%s %s' % ('CALL' if dt == 1 else 'END ', txt), tail)\n            self._call(key.split()[0],\
+      \ txt, 'voice here' if dt == 1 else 'ended')\n            return\n        if\
+      \ dt == 5:                                  # MBC continuation (unmasked CRC)\n\
+      \            self._mbc_cont(b, key, tail)\n            return\n        if dt\
+      \ in CRC_MASK:\n            crc = (b[10] << 8 | b[11]) ^ CRC_MASK[dt]\n    \
+      \        if crc_ccitt_dmr(b[:10]) != crc:\n                self.n['crc_fail']\
+      \ += 1\n                return\n            if dt == 3:\n                self._csbk(b,\
+      \ None, key, tail)\n            elif dt == 0:\n                self._act(slot,\
+      \ 'PI header (encrypted call)')\n                self.enc[slot] = True\n   \
+      \             self._emit(key, 'PI HDR ALG=%02X KID=%02X MI=%08X TGT=%d' % (\n\
+      \                    b[0], b[2], (b[3] << 24) | (b[4] << 16) | (b[5] << 8) |\
+      \ b[6],\n                    (b[7] << 16) | (b[8] << 8) | b[9]), tail)\n   \
+      \         elif dt == 6:\n                self._act(slot, 'data')\n         \
+      \       dpf = b[0] & 0xF\n                self._emit(key, 'DATA HDR %s %s SAP=%d\
+      \ DST=%d SRC=%d' % (\n                    DPF_NAME.get(dpf, 'DPF%d' % dpf),\
+      \ 'grp' if b[0] & 0x80 else 'ind', b[1] >> 4,\n                    (b[2] <<\
+      \ 16) | (b[3] << 8) | b[4], (b[5] << 16) | (b[6] << 8) | b[7]), tail)\n    \
+      \        elif dt == 4:                            # wait for the continuation\
+      \ block(s)\n                self.mbc[key] = [list(b), [], time.time()]\n   \
+      \         return\n        self._act(slot, DT_NAME.get(dt, 'type %d' % dt).lower())\n\
+      \        if self.show_data:\n            self._emit(key, '%s block' % DT_NAME.get(dt,\
+      \ dt))\n\n    def _emb_burst(self, y, skey, g, o):\n        \"\"\"voice burst\
+      \ B..F: y = 144 symbols, EMB/embedded LC at 66..90\"\"\"\n        z = (y[66:90]\
+      \ - o) / g\n        llr = syms_to_llr(z)\n        e, nerr = EMBCODE.decode(np.concatenate([llr[0:8],\
+      \ llr[40:48]]))\n        if nerr > 2:\n            self.emb[skey] = []\n   \
+      \         return\n        cc, lcss = e >> 3, e & 3\n        frag = list(llr[8:40])\n\
+      \        lst = self.emb.get(skey, [])\n        if lcss == 1:\n            lst\
+      \ = [frag]\n        elif lcss == 3 and 1 <= len(lst) <= 2:\n            lst.append(frag)\n\
+      \        elif lcss == 2 and len(lst) == 3:\n            lst.append(frag)\n \
+      \           self._emb_lc(sum(lst, []), skey, cc)\n            lst = []\n   \
+      \     else:\n            lst = []\n        self.emb[skey] = lst\n\n    def _emb_lc(self,\
+      \ raw, skey, cc):\n        L = np.zeros(128)\n        b = 0\n        for a in\
+      \ range(128):\n            L[b] = raw[a]\n            b += 16\n            if\
+      \ b > 127:\n                b -= 127\n        d = [int(v) for v in tpc_decode(L.reshape(8,\
+      \ 16), HAM16S, 7, SPC8S).reshape(-1)]\n        for r in range(7):\n        \
+      \    if HAM16.correct(d[16 * r:16 * r + 16]) != 0:\n                return\n\
+      \        for c in range(16):\n            if (d[c] ^ d[16 + c] ^ d[32 + c] ^\
+      \ d[48 + c] ^ d[64 + c] ^ d[80 + c] ^ d[96 + c] ^ d[112 + c]):\n           \
+      \     return\n        data = d[0:11] + d[16:27] + d[32:42] + d[48:58] + d[64:74]\
+      \ + d[80:90] + d[96:106]\n        crc = (d[42] << 4) | (d[58] << 3) | (d[74]\
+      \ << 2) | (d[90] << 1) | d[106]\n        lc = bits_to_bytes(data[:72])\n   \
+      \     if sum(lc) % 31 != crc:\n            return\n        txt = fmt_lc(lc)\n\
+      \        if (lc[0] & 0x3F) in (0x00, 0x03):\n            self.enc[skey] = bool(lc[2]\
+      \ & 0x40)\n        self._emit('%s CC%d' % (skey, cc), 'CALL %s' % txt)\n   \
+      \     self._call(skey, txt, 'voice here')\n\n    # ------------------------------------------------------------------\
+      \ channel picture\n    def _reset_channel(self):\n        \"\"\"forget everything\
+      \ that describes 'this channel' (called on retune)\"\"\"\n        self.t0 =\
+      \ time.time()\n        self.mbc, self.emb, self.slc_bits = {}, {}, []\n    \
+      \    self.site, self.chan_kind, self.fids = None, {}, {}\n        self.slot_act,\
+      \ self.neigh, self.calls, self.offs = {}, {}, {}, []\n        self.ccs = {}\n\
+      \        self.grid, self.last_bs, self.fit = None, None, None\n        self.grid_ok,\
+      \ self.cand = False, []\n        self.jobs = []\n        self.n = {k: 0 for\
+      \ k in self.n}\n        self.vstate, self.vlast, self.enc, self.vstats = {},\
+      \ {}, {}, {}\n\n    def _kind(self, k):\n        self.chan_kind[k] = time.time()\n\
+      \n    def _act(self, slot, txt, weak=False):\n        if slot == 'TS?':\n  \
+      \          return\n        now = time.time()\n        old = self.slot_act.get(slot)\n\
+      \        if weak and old is not None and now - old[0] < 2.0 and not old[1].startswith('SLC'):\n\
+      \            return                                   # a decoded burst beats\
+      \ the CACH summary\n        if txt == 'voice' and old is not None and old[1].startswith('voice')\
+      \ and now - old[0] < 2.0:\n            txt = old[1]                        \
+      \     # keep the talkgroup text during a call\n        self.slot_act[slot] =\
+      \ (now, txt)\n\n    def _call(self, slot, lc_txt, where):\n        now = time.time()\n\
+      \        k = lc_txt.split(' ENCRYPTED')[0].split(' EMERGENCY')[0]\n        c\
+      \ = self.calls.setdefault(k, [now, now, where])\n        c[1], c[2] = now, (where\
+      \ if where != 'voice here' else '%s on %s' % (where, slot))\n        if where\
+      \ == 'voice here':\n            self.slot_act[slot] = (now, 'voice ' + lc_txt)\n\
+      \n    def _plan(self, lpcn):\n        if self.plan_ref_hz > 0 and lpcn not in\
+      \ (0, 0xFFF):\n            return self.plan_ref_hz + (lpcn - self.plan_ref_lpcn)\
+      \ * self.plan_step_hz\n        return None\n\n    def _freq(self, lpcn):\n \
+      \       if lpcn in self.chmap:\n            return '%.5f MHz' % (self.chmap[lpcn][0]\
+      \ / 1e6)\n        f = self._plan(lpcn)\n        if f is not None:\n        \
+      \    return 'LPCN %d = %.5f MHz (plan)' % (lpcn, f / 1e6)\n        return 'LPCN\
+      \ %d (freq not announced)' % lpcn\n\n    def _csbk(self, b, cont, key, tail):\n\
+      \        txt, info = parse_csbk(b, cont)\n        now = time.time()\n      \
+      \  fid = info['fid']\n        self.fids[fid] = now\n        k = info.get('kind')\n\
+      \        slot = key.split()[0]\n        if 'chan' in info and info['chan'][0]\
+      \ not in (0, 0xFFF):\n            self.chmap[info['chan'][0]] = info['chan'][1:]\n\
+      \        if k in ('aloha', 'bcast'):\n            self.site = (sys_ident(info['site']['syscode'],\
+      \ {v: k for k, v in PAR_NAME.items()}.get(info['site'].get('par')))[1],\n  \
+      \                       now, info['site']['syscode'])\n            self._kind('Tier\
+      \ III CONTROL channel (TSCC)')\n            self._act(slot, 'control signalling\
+      \ (%s)' % ('C_ALOHA' if k == 'aloha' else 'C_BCAST'))\n            if 'neigh'\
+      \ in info and info.get('lpcn') not in (None, 0, 0xFFF) and 'chan' not in info\
+      \ \\\n                    and self._plan(info['lpcn']):\n                txt\
+      \ += ' -> %s' % self._freq(info['lpcn'])\n            if 'neigh' in info:\n\
+      \                nd = info['neigh']\n                self.neigh[nd['syscode']]\
+      \ = ('Net %d Site %d' % (nd['net'], nd['site']), info.get('lpcn'), now,\n  \
+      \                                           ANN_NAME.get(info['ann'], ''), info.get('chan'))\n\
+      \        elif k == 'grant':\n            where = 'granted %s TS%d' % (\n   \
+      \             ('%.5f MHz' % (info['chan'][1] / 1e6)) if 'chan' in info else\
+      \ self._freq(info['lpcn']), info['ts'])\n            ltxt = ('Group TG=%d SRC=%d'\
+      \ if info['group'] else 'Private TGT=%d SRC=%d') % (info['tgt'], info['src'])\n\
+      \            self._call(slot, ltxt, where)\n            self._act(slot, 'control\
+      \ signalling (grants)')\n            if 'chan' not in info and (info['lpcn']\
+      \ in self.chmap or self._plan(info['lpcn'])):\n                txt += ' -> %s'\
+      \ % self._freq(info['lpcn'])\n        elif k:\n            self._act(slot, 'CSBK\
+      \ ' + txt.split()[0])\n        self._emit(key, txt, tail)\n\n    def _mbc_cont(self,\
+      \ b, key, tail):\n        m = self.mbc.get(key)\n        if m is None or time.time()\
+      \ - m[2] > 1.0:\n            return\n        m[1].append(list(b))\n        if\
+      \ not (b[0] >> 7) & 1 and len(m[1]) < 3:      # more continuation blocks follow\n\
+      \            return\n        del self.mbc[key]\n        bits = []\n        for\
+      \ blk_ in m[1]:\n            for x in blk_:\n                bits += int_bits(x,\
+      \ 8)\n        if crc_ccitt_dmr(bits_to_bytes(bits[:-16])) != bits_to_int(bits[-16:]):\n\
+      \            self.n['crc_fail'] += 1\n            return\n        self._csbk(m[0],\
+      \ m[1][0], key, tail)\n\n    def _status(self, now):\n        L = []\n     \
+      \   bar = '=' * 72\n        L.append(bar)\n        L.append(' DMR channel status\
+      \   %s   (running %d s)' % (time.strftime('%H:%M:%S'), now - self.t0))\n   \
+      \     L.append(bar)\n        rf = ('%.5f MHz' % (self.rf_hz / 1e6)) if self.rf_hz\
+      \ > 0 else '(set rf_hz)'\n        if self.offs:\n            o = sorted(x[0]\
+      \ for x in self.offs)[len(self.offs) // 2]\n            d = sorted(x[1] for\
+      \ x in self.offs)[len(self.offs) // 2]\n            ppm = ('  ~%+.1f ppm' %\
+      \ (o / self.rf_hz * 1e6)) if self.rf_hz > 0 else ''\n            L.append('\
+      \ Frequency   : %s   carrier offset %+.0f Hz%s   deviation %.0f Hz' % (rf, o,\
+      \ ppm, d))\n        else:\n            L.append(' Frequency   : %s   (no DMR\
+      \ burst decoded yet)' % rf)\n        kinds = [k for k, t in sorted(self.chan_kind.items(),\
+      \ key=lambda kv: -kv[1]) if now - t < 30]\n        L.append(' Channel type:\
+      \ %s' % ('; '.join(kinds) if kinds else '-'))\n        if self.site and now\
+      \ - self.site[1] < 60:\n            L.append(' Site        : %s' % self.site[0])\n\
+      \        vend = ['%02X %s' % (f, FID_NAME.get(f, '?')) for f, t in self.fids.items()\
+      \ if now - t < 60 and f != 0]\n        if self.fids:\n            L.append('\
+      \ Feature IDs : standard%s' % ((' + ' + ', '.join(vend)) if vend else ''))\n\
+      \        cc = sorted(self.ccs.items(), key=lambda kv: -kv[1])\n        L.append('\
+      \ Colour code : %s' % (', '.join('CC%d (%d bursts)' % kv for kv in cc) if cc\
+      \ else '-'))\n        for sl in sorted(self.slot_act):\n            t, txt =\
+      \ self.slot_act[sl]\n            age = now - t\n            L.append(' %-12s:\
+      \ %s%s' % (sl, txt if age < 5 else 'silent', '' if age < 5 else ' (last: %s,\
+      \ %d s ago)' % (txt, age)))\n        if self.neigh:\n            L.append('\
+      \ Neighbours  :')\n            own = self.site[2] if self.site and len(self.site)\
+      \ > 2 else None\n            for sc, (txt, lpcn, t, how, ch) in sorted(self.neigh.items()):\n\
+      \                f = ('%.5f MHz' % (ch[1] / 1e6)) if ch else (self._freq(lpcn)\
+      \ if lpcn not in (None, 0xFFF) else '-')\n                L.append('    %-20s\
+      \ syscode %04X  TSCC %-36s [%s, %d s ago]%s' % (\n                    txt, sc,\
+      \ f, how, now - t, '  <- THIS SITE' if sc == own else ''))\n        if self.plan_ref_hz\
+      \ > 0:\n            L.append(' Channel plan: (configured) LPCN n = %.5f MHz\
+      \ + (n - %d) x %.3f kHz' % (\n                self.plan_ref_hz / 1e6, self.plan_ref_lpcn,\
+      \ self.plan_step_hz / 1e3))\n        if self.chmap:\n            L.append('\
+      \ Announced   : ' + ', '.join('LPCN %d = %.5f MHz (TX %.5f)' % (k, v[0] / 1e6,\
+      \ v[1] / 1e6)\n                                              for k, v in sorted(self.chmap.items())))\n\
+      \        recent = sorted(((v[1], k, v) for k, v in self.calls.items() if now\
+      \ - v[1] < 300), reverse=True)[:8]\n        if recent:\n            L.append('\
+      \ Calls (last 5 min, newest first):')\n            for t, k, v in recent:\n\
+      \                L.append('    %s  %-36s %s' % (time.strftime('%H:%M:%S', time.localtime(t)),\
+      \ k, v[2]))\n        vl = ' Voice audio : %s' % (self.voc_msg if self.voc else\
+      \ 'OFF - ' + self.voc_msg)\n        L.append(vl[:150])\n        if self.voc:\n\
+      \            L.append('               playing: %s   delay %.2f s%s   frames\
+      \ decoded/avg bit errors: %s' % (\n                {0: 'all slots', 1: 'TS1',\
+      \ 2: 'TS2'}.get(self.audio_slot, '?'), self.audio_delay,\n                ('\
+      \  (%d bursts too late: raise audio_delay)' % self.alate) if self.alate else\
+      \ '',\n                ', '.join('%s %d/%.2f%s' % (k, v[0], v[1] / max(v[0],\
+      \ 1), ' (encrypted, muted)' if self.enc.get(k) else '')\n                  \
+      \        for k, v in sorted(self.vstats.items())) or '-'))\n        L.append('\
+      \ Decoder     : bursts %d (idle %d, voice superframes %d)  rejected: slot-type\
+      \ %d, BPTC %d, CRC/RS %d, off-grid/unconfirmed sync %d'\n                 %\
+      \ (self.n['bursts'], self.n['idle'], self.n['voice'], self.n['bad_slot_type'],\n\
+      \                    self.n['bptc_fail'], self.n['crc_fail'], self.n['offgrid']))\n\
+      \        if self.n['p25'] > 5 and self.n['bursts'] == 0:\n            L.append('\
+      \ NOTE        : P25 syncs seen (%d) -> use p25_rx' % self.n['p25'])\n      \
+      \  elif self.n['bursts'] == 0:\n            L.append(' NOTE        : no DMR\
+      \ sync: check frequency/ppm')\n        elif self.n['bad_slot_type'] > self.n['bursts']\
+      \ // 2:\n            L.append(' NOTE        : mostly bad slot types: try invert=True\
+      \ or fix ppm')\n        L.append(bar)\n        return '\\n'.join(L)\n\n    #\
+      \ ------------------------------------------------------------------ burst grid\n\
+      \    def _on_grid(self, p, q):\n        k = (p - q) / (144.0 * self.sps)\n \
+      \       return abs(k - round(k)) <= 0.05\n\n    def _grid_check(self, pos):\n\
+      \        \"\"\"A repeater sends syncs only on a 30 ms (144 symbol) grid. Accept\
+      \ a BS sync if it is on\n        the grid of the last accepted one (< 0.5 s\
+      \ ago); otherwise only once a second sync\n        within 1 s confirms its grid.\
+      \ Rejects AMBE/data payload that happens to look like a sync.\"\"\"\n      \
+      \  sps = self.sps\n        if self.grid_ok and self.last_bs is not None and\
+      \ pos - self.last_bs < 0.5 * 4800 * sps:\n            if self._on_grid(pos,\
+      \ self.last_bs):\n                return True\n            self.n['offgrid']\
+      \ += 1\n            return False\n        self.grid_ok = False\n        self.cand\
+      \ = [c for c in self.cand if pos - c < 4800 * sps]\n        if any(self._on_grid(pos,\
+      \ c) for c in self.cand):\n            self.grid_ok = True\n            self.cand\
+      \ = []\n            return True\n        self.cand.append(pos)\n        self.n['offgrid']\
+      \ += 1\n        return False\n\n    # ------------------------------------------------------------------\
+      \ voice\n    def _slot_selected(self, slot):\n        if self.audio_slot ==\
+      \ 0:\n            return True\n        return slot.endswith('TS%d' % self.audio_slot)\
+      \ or (self.audio_slot == 1 and slot == 'MS')\n\n    def _voice(self, y, g, o,\
+      \ slot, pos):\n        \"\"\"decode the three AMBE+2 frames of one voice burst\
+      \ and queue the audio\"\"\"\n        if self.voc is None or slot == 'TS?':\n\
+      \            return\n        gap = 3 * 288 * self.sps\n        if slot not in\
+      \ self.vstate or pos - self.vlast.get(slot, -10 ** 12) > gap:\n            self.vstate[slot]\
+      \ = self.voc.new_state()             # new call: fresh vocoder state\n     \
+      \   self.vlast[slot] = pos\n        llr = syms_to_llr((y[12:144] - o) / g)\n\
+      \        pcm = []\n        st = self.vstats.setdefault(slot, [0, 0])\n     \
+      \   for f in burst_ambe_llrs(llr):\n            a, e = self.voc.decode(self.vstate[slot],\
+      \ f)\n            pcm.append(a)\n            st[0] += 1\n            st[1] +=\
+      \ max(int(e), 0)\n        if self.enc.get(slot):\n            if not self.enc_note.get(slot):\n\
+      \                self.enc_note[slot] = True\n                _say('[DMR %s]\
+      \ %s encrypted call: audio muted' % (time.strftime('%H:%M:%S'), slot))\n   \
+      \         return\n        if self._slot_selected(slot):\n            a = np.concatenate(pcm)\
+      \ * self.voc_gain\n            start = int(round((pos + self.audio_delay * 4800\
+      \ * self.sps) / self.adec)) - self.abase\n            if start < 0:        \
+      \                               # decoded too late for its slot\n          \
+      \      self.alate += 1\n                a, start = a[-start:], 0\n         \
+      \   end = start + len(a)\n            if end > len(self.abuf):\n           \
+      \     self.abuf = np.concatenate([self.abuf, np.zeros(end - len(self.abuf) +\
+      \ 8000, np.float32)])\n            self.abuf[start:end] += a\n\n    def _audio_out(self,\
+      \ n):\n        if len(self.abuf) < n:\n            self.abuf = np.concatenate([self.abuf,\
+      \ np.zeros(n - len(self.abuf), np.float32)])\n        out = np.clip(self.abuf[:n].copy(),\
+      \ -1.0, 1.0)\n        self.abuf = np.concatenate([self.abuf[n:], np.zeros(n,\
+      \ np.float32)])\n        self.abase += n\n        return out\n\n    # ------------------------------------------------------------------\
+      \ sync search\n    def _search(self, end):\n        sps, L = self.sps, self.L\n\
+      \        h = sps // 2                                   # +- half a symbol =\
+      \ one sync\n        lo = max(self.scan - h, self.base)             # left context\
+      \ for peak picking\n        last_final = end - L - h                       #\
+      \ last window start that can be finalised\n        if last_final < self.scan:\n\
+      \            return\n        seg = self.buf[lo - self.base:]\n        nwin =\
+      \ len(seg) - L + 1\n        if nwin <= 0:\n            return\n        for kind,\
+      \ tm in self.tm.items():\n            rho = self.pol * self._rho(seg, tm)\n\
+      \            ar = np.abs(rho)\n            for k in np.flatnonzero(ar >= self.thr):\n\
+      \                a = lo + int(k)\n                if a < self.scan or a > last_final:\n\
+      \                    continue\n                k0, k1 = max(k - h, 0), min(k\
+      \ + h + 1, nwin)\n                if ar[k] < ar[k0:k1].max():\n            \
+      \        continue\n                if any(abs(a - p) <= h for p in self.done.get(kind,\
+      \ [])):\n                    continue\n                # fractional peak (parabola\
+      \ through k-1, k, k+1)\n                d = 0.0\n                if 0 < k <\
+      \ nwin - 1:\n                    den = ar[k - 1] - 2 * ar[k] + ar[k + 1]\n \
+      \                   if den < 0:\n                        d = float(np.clip(0.5\
+      \ * (ar[k - 1] - ar[k + 1]) / den, -0.5, 0.5))\n                self.done.setdefault(kind,\
+      \ []).append(a)\n                self.jobs.append((a + d, kind, bool(rho[k]\
+      \ > 0), 0, None))\n        rp = np.abs(self._rho(seg, self.tm_p25))\n      \
+      \  self.n['p25'] += int(np.sum((rp[1:-1] >= 0.9) & (rp[1:-1] >= rp[:-2]) & (rp[1:-1]\
+      \ >= rp[2:])) // sps)\n        for kind in self.done:\n            self.done[kind]\
+      \ = [p for p in self.done[kind] if p > end - 4 * L - 40000]\n        self.scan\
+      \ = last_final + 1\n\n    # ------------------------------------------------------------------\
+      \ work\n    def work(self, input_items, output_items):\n        x = input_items[0]\n\
+      \        aout, out = output_items[0], output_items[1]\n        sps = self.sps\n\
+      \        n_out = len(out)\n        x = x[:n_out * self.adec].astype(np.float64)\n\
+      \        if self.rf_hz != self._rf_seen:                # retuned (GRC callback\
+      \ set rf_hz)\n            self._rf_seen = self.rf_hz\n            self._reset_channel()\n\
+      \            if time.time() - getattr(self, '_t_reset_msg', 0) > 1.0:   # a\
+      \ slider drag = many steps\n                self._t_reset_msg = time.time()\n\
+      \                _say('[DMR %s] --- retuned to %.5f MHz: channel picture reset\
+      \ ---' % (\n                    time.strftime('%H:%M:%S'), self.rf_hz / 1e6))\n\
+      \        abs0 = self.base + len(self.buf)               # absolute index of\
+      \ x[0]\n        self.buf = np.concatenate([self.buf, x])\n        end = self.base\
+      \ + len(self.buf)\n        self._search(end)\n\n        self.jobs.sort(key=lambda\
+      \ j: j[0])\n        still = []\n        for job in self.jobs:\n            pos,\
+      \ kind, voice, n, fit = job\n            if pos + 80 * sps + 3 > end:\n    \
+      \            still.append(job)\n                continue\n            if n ==\
+      \ 6:                                 # predicted next superframe (burst A)\n\
+      \                h = sps // 2 + 1\n                if any(abs(pos - p) <= h\
+      \ for p in self.done.get(kind, [])):\n                    continue         \
+      \                  # the sync search found it: that job handles it\n       \
+      \         y = self._syms(pos, -66, 144)\n                if y is None:\n   \
+      \                 continue\n                t = self.tsyms[kind]\n         \
+      \       yc = y[66:90] - y[66:90].mean()\n                rho = float(np.dot(yc,\
+      \ t - t.mean()) / (np.linalg.norm(yc) * np.linalg.norm(t - t.mean()) + 1e-12))\n\
+      \                if rho < 0.5:\n                    continue               \
+      \            # no voice sync there: the call has ended\n                n =\
+      \ 0                                  # weak sync: decode it as burst A\n   \
+      \         if kind != 'BS' and n == 0 and self.last_bs is not None and \\\n \
+      \                   abs(pos - self.last_bs) < 2 * 4800 * sps:\n            \
+      \    continue                               # repeater locked: MS/DM syncs here\
+      \ are false hits\n            if kind == 'BS' and n == 0 and not self._grid_check(pos):\n\
+      \                continue                               # not (yet) on a confirmed\
+      \ 30 ms burst grid\n            y = self._syms(pos, -66, 144)\n            if\
+      \ y is None:\n                continue\n            self.n['bursts'] += 1\n\
+      \            if n == 0:\n                gf = self._fit(y, kind, voice)\n  \
+      \              if gf is None:\n                    continue\n              \
+      \  g, o = gf\n                self.fit = (g, o)\n                self.phase\
+      \ = pos % sps\n                if kind == 'BS':\n                    step =\
+      \ 144 * sps\n                    if self.grid is None or abs(((pos - self.grid)\
+      \ / step) - round((pos - self.grid) / step)) > 0.05:\n                     \
+      \   self.grid = pos\n                    else:                             \
+      \  # keep the grid, refresh its timing\n                        self.grid =\
+      \ pos + step * round((self.grid - pos) / step)\n                    self.last_bs\
+      \ = pos\n                if voice:\n                    self.n['voice'] += 1\n\
+      \                    skey = self._slot_key(y, kind, g, o)\n                \
+      \    self._act(skey, 'voice')\n                    self._voice(y, g, o, skey,\
+      \ pos)\n                    for k in range(1, 7):\n                        still.append((pos\
+      \ + 288 * sps * k, kind, True, k, (g, o, skey)))\n                else:\n  \
+      \                  self._data_burst(y, kind, g, o)\n            else:\n    \
+      \            g, o, skey = fit\n                self._emb_burst(y, skey, g, o)\n\
+      \                self._voice(y, g, o, skey, pos)\n        self.jobs = still\n\
+      \        self._grid_run(end)\n\n        # display output: symbol-centre samples,\
+      \ held at the 8 kHz output rate.\n        # self.phase is an absolute sample\
+      \ position (mod sps); convert it to this chunk,\n        # whose first sample\
+      \ is at absolute index abs0 (chunks are multiples of 6, not of sps)\n      \
+      \  ph = int(round(self.phase - abs0)) % sps\n        t = np.arange(n_out) *\
+      \ self.adec\n        idx = ph + np.floor((t - ph) / sps).astype(int) * sps\n\
+      \        idx[idx < 0] = ph\n        out[:] = x[np.minimum(idx, len(x) - 1)]\n\
+      \        aout[:] = self._audio_out(n_out)\n\n        keep = min([self.scan -\
+      \ sps] + [j[0] for j in self.jobs] +\n                   ([self.grid] if self.grid\
+      \ is not None else []))\n        cut = int(keep - 70 * sps) - self.base\n  \
+      \      if cut > 0:\n            self.buf = self.buf[cut:]\n            self.base\
+      \ += cut\n\n        now = time.time()\n        if self.stats_every > 0 and now\
+      \ - self.t_last >= self.stats_every:\n            self.t_last = now\n      \
+      \      _say(self._status(now))\n        return n_out\n"
+    affinity: ''
+    alias: ''
+    audio_delay: '0.25'
+    audio_slot: audio_slot
+    color_code: '-1'
+    comment: 'DMR decoder. Feed-forward timing from every sync
+
+      (no Symbol Sync loop -> instant lock after retuning).
+
+      Out 0: voice audio 8 kHz (mbelib-neo / mbelib via ctypes). Out 1: symbols for
+      the histogram.
+
+      Prints a channel status panel every stats_every s'
+    dedup_s: '10.0'
+    invert: 'False'
+    maxoutbuf: '0'
+    mbelib_path: mbelib_path
+    minoutbuf: '0'
+    plan_ref_hz: plan_ref_hz
+    plan_ref_lpcn: plan_ref_lpcn
+    plan_step_hz: plan_step_hz
+    rf_hz: dmr_freq + fine_hz
+    show_data: 'True'
+    sps: sps
+    stats_every: '10.0'
+    sync_thresh: '0.80'
+  states:
+    _io_cache: '(''DMR Decoder'', ''blk'', [(''sps'', ''10''), (''sync_thresh'', ''0.8''),
+      (''color_code'', ''-1''), (''dedup_s'', ''10.0''), (''show_data'', ''True''),
+      (''invert'', ''False''), (''stats_every'', ''10.0''), (''rf_hz'', ''0.0''),
+      (''plan_ref_lpcn'', ''0''), (''plan_ref_hz'', ''0.0''), (''plan_step_hz'', ''12500.0''),
+      (''audio_slot'', ''0''), (''mbelib_path'', "''''"), (''audio_delay'', ''0.25'')],
+      [(''0'', ''float'', 1)], [(''0'', ''float'', 1), (''1'', ''float'', 1), (''out'',
+      ''message'', 1)], ''DMR decoder: CACH/SLC, CSBK, voice LC, embedded LC, data
+      headers -> text; AMBE+2 voice -> audio'', [''audio_delay'', ''audio_slot'',
+      ''dedup_s'', ''plan_ref_hz'', ''plan_ref_lpcn'', ''plan_step_hz'', ''rf_hz'',
+      ''show_data'', ''sps'', ''stats_every''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1096, 252.0]
+    rotation: 0
+    state: enabled
+- name: fft_if
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: if_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: dmr_freq
+    fftsize: '4096'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: 1,0,1,3
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"240 kHz around the channel (channel at 0)"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '-20'
+    ymin: '-120'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 452.0]
+    rotation: 0
+    state: enabled
+- name: hist_sym
+  id: qtgui_histogram_sink_x
+  parameters:
+    accum: 'False'
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'True'
+    axislabels: 'True'
+    bins: '120'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: 'Peaks shifted sideways = carrier offset (fix ppm).
+
+      Peaks smeared together = weak signal'
+    grid: 'True'
+    gui_hint: 2,0,1,3
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'False'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Symbol levels: want 4 sharp peaks at -3 -1 +1 +3"'
+    nconnections: '1'
+    size: '4800'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    type: float
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '6'
+    xmin: '-6'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1408, 416.0]
+    rotation: 0
+    state: enabled
+- name: quad_demod
+  id: analog_quadrature_demod_cf
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'FM discriminator: 600 Hz -> 1.0'
+    gain: ch_rate/(2*3.141592653589793*dev_unit)
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [696, 312.0]
+    rotation: 0
+    state: enabled
+- name: rtlsdr_source_0
+  id: osmosdr_source
+  parameters:
+    affinity: ''
+    alias: ''
+    ant0: ''
+    ant1: ''
+    ant10: ''
+    ant11: ''
+    ant12: ''
+    ant13: ''
+    ant14: ''
+    ant15: ''
+    ant16: ''
+    ant17: ''
+    ant18: ''
+    ant19: ''
+    ant2: ''
+    ant20: ''
+    ant21: ''
+    ant22: ''
+    ant23: ''
+    ant24: ''
+    ant25: ''
+    ant26: ''
+    ant27: ''
+    ant28: ''
+    ant29: ''
+    ant3: ''
+    ant30: ''
+    ant31: ''
+    ant4: ''
+    ant5: ''
+    ant6: ''
+    ant7: ''
+    ant8: ''
+    ant9: ''
+    args: '"rtl=0"'
+    bb_gain0: '20'
+    bb_gain1: '20'
+    bb_gain10: '20'
+    bb_gain11: '20'
+    bb_gain12: '20'
+    bb_gain13: '20'
+    bb_gain14: '20'
+    bb_gain15: '20'
+    bb_gain16: '20'
+    bb_gain17: '20'
+    bb_gain18: '20'
+    bb_gain19: '20'
+    bb_gain2: '20'
+    bb_gain20: '20'
+    bb_gain21: '20'
+    bb_gain22: '20'
+    bb_gain23: '20'
+    bb_gain24: '20'
+    bb_gain25: '20'
+    bb_gain26: '20'
+    bb_gain27: '20'
+    bb_gain28: '20'
+    bb_gain29: '20'
+    bb_gain3: '20'
+    bb_gain30: '20'
+    bb_gain31: '20'
+    bb_gain4: '20'
+    bb_gain5: '20'
+    bb_gain6: '20'
+    bb_gain7: '20'
+    bb_gain8: '20'
+    bb_gain9: '20'
+    bw0: '0'
+    bw1: '0'
+    bw10: '0'
+    bw11: '0'
+    bw12: '0'
+    bw13: '0'
+    bw14: '0'
+    bw15: '0'
+    bw16: '0'
+    bw17: '0'
+    bw18: '0'
+    bw19: '0'
+    bw2: '0'
+    bw20: '0'
+    bw21: '0'
+    bw22: '0'
+    bw23: '0'
+    bw24: '0'
+    bw25: '0'
+    bw26: '0'
+    bw27: '0'
+    bw28: '0'
+    bw29: '0'
+    bw3: '0'
+    bw30: '0'
+    bw31: '0'
+    bw4: '0'
+    bw5: '0'
+    bw6: '0'
+    bw7: '0'
+    bw8: '0'
+    bw9: '0'
+    clock_source0: ''
+    clock_source1: ''
+    clock_source2: ''
+    clock_source3: ''
+    clock_source4: ''
+    clock_source5: ''
+    clock_source6: ''
+    clock_source7: ''
+    comment: RTL-SDR, manual gain, AGC off. "rtl=0,bias=1" for bias-T
+    corr0: ppm
+    corr1: '0'
+    corr10: '0'
+    corr11: '0'
+    corr12: '0'
+    corr13: '0'
+    corr14: '0'
+    corr15: '0'
+    corr16: '0'
+    corr17: '0'
+    corr18: '0'
+    corr19: '0'
+    corr2: '0'
+    corr20: '0'
+    corr21: '0'
+    corr22: '0'
+    corr23: '0'
+    corr24: '0'
+    corr25: '0'
+    corr26: '0'
+    corr27: '0'
+    corr28: '0'
+    corr29: '0'
+    corr3: '0'
+    corr30: '0'
+    corr31: '0'
+    corr4: '0'
+    corr5: '0'
+    corr6: '0'
+    corr7: '0'
+    corr8: '0'
+    corr9: '0'
+    dc_offset_mode0: '0'
+    dc_offset_mode1: '0'
+    dc_offset_mode10: '0'
+    dc_offset_mode11: '0'
+    dc_offset_mode12: '0'
+    dc_offset_mode13: '0'
+    dc_offset_mode14: '0'
+    dc_offset_mode15: '0'
+    dc_offset_mode16: '0'
+    dc_offset_mode17: '0'
+    dc_offset_mode18: '0'
+    dc_offset_mode19: '0'
+    dc_offset_mode2: '0'
+    dc_offset_mode20: '0'
+    dc_offset_mode21: '0'
+    dc_offset_mode22: '0'
+    dc_offset_mode23: '0'
+    dc_offset_mode24: '0'
+    dc_offset_mode25: '0'
+    dc_offset_mode26: '0'
+    dc_offset_mode27: '0'
+    dc_offset_mode28: '0'
+    dc_offset_mode29: '0'
+    dc_offset_mode3: '0'
+    dc_offset_mode30: '0'
+    dc_offset_mode31: '0'
+    dc_offset_mode4: '0'
+    dc_offset_mode5: '0'
+    dc_offset_mode6: '0'
+    dc_offset_mode7: '0'
+    dc_offset_mode8: '0'
+    dc_offset_mode9: '0'
+    freq0: dmr_freq - lo_offset
+    freq1: 100e6
+    freq10: 100e6
+    freq11: 100e6
+    freq12: 100e6
+    freq13: 100e6
+    freq14: 100e6
+    freq15: 100e6
+    freq16: 100e6
+    freq17: 100e6
+    freq18: 100e6
+    freq19: 100e6
+    freq2: 100e6
+    freq20: 100e6
+    freq21: 100e6
+    freq22: 100e6
+    freq23: 100e6
+    freq24: 100e6
+    freq25: 100e6
+    freq26: 100e6
+    freq27: 100e6
+    freq28: 100e6
+    freq29: 100e6
+    freq3: 100e6
+    freq30: 100e6
+    freq31: 100e6
+    freq4: 100e6
+    freq5: 100e6
+    freq6: 100e6
+    freq7: 100e6
+    freq8: 100e6
+    freq9: 100e6
+    gain0: rf_gain
+    gain1: '10'
+    gain10: '10'
+    gain11: '10'
+    gain12: '10'
+    gain13: '10'
+    gain14: '10'
+    gain15: '10'
+    gain16: '10'
+    gain17: '10'
+    gain18: '10'
+    gain19: '10'
+    gain2: '10'
+    gain20: '10'
+    gain21: '10'
+    gain22: '10'
+    gain23: '10'
+    gain24: '10'
+    gain25: '10'
+    gain26: '10'
+    gain27: '10'
+    gain28: '10'
+    gain29: '10'
+    gain3: '10'
+    gain30: '10'
+    gain31: '10'
+    gain4: '10'
+    gain5: '10'
+    gain6: '10'
+    gain7: '10'
+    gain8: '10'
+    gain9: '10'
+    gain_mode0: 'False'
+    gain_mode1: 'False'
+    gain_mode10: 'False'
+    gain_mode11: 'False'
+    gain_mode12: 'False'
+    gain_mode13: 'False'
+    gain_mode14: 'False'
+    gain_mode15: 'False'
+    gain_mode16: 'False'
+    gain_mode17: 'False'
+    gain_mode18: 'False'
+    gain_mode19: 'False'
+    gain_mode2: 'False'
+    gain_mode20: 'False'
+    gain_mode21: 'False'
+    gain_mode22: 'False'
+    gain_mode23: 'False'
+    gain_mode24: 'False'
+    gain_mode25: 'False'
+    gain_mode26: 'False'
+    gain_mode27: 'False'
+    gain_mode28: 'False'
+    gain_mode29: 'False'
+    gain_mode3: 'False'
+    gain_mode30: 'False'
+    gain_mode31: 'False'
+    gain_mode4: 'False'
+    gain_mode5: 'False'
+    gain_mode6: 'False'
+    gain_mode7: 'False'
+    gain_mode8: 'False'
+    gain_mode9: 'False'
+    if_gain0: '20'
+    if_gain1: '20'
+    if_gain10: '20'
+    if_gain11: '20'
+    if_gain12: '20'
+    if_gain13: '20'
+    if_gain14: '20'
+    if_gain15: '20'
+    if_gain16: '20'
+    if_gain17: '20'
+    if_gain18: '20'
+    if_gain19: '20'
+    if_gain2: '20'
+    if_gain20: '20'
+    if_gain21: '20'
+    if_gain22: '20'
+    if_gain23: '20'
+    if_gain24: '20'
+    if_gain25: '20'
+    if_gain26: '20'
+    if_gain27: '20'
+    if_gain28: '20'
+    if_gain29: '20'
+    if_gain3: '20'
+    if_gain30: '20'
+    if_gain31: '20'
+    if_gain4: '20'
+    if_gain5: '20'
+    if_gain6: '20'
+    if_gain7: '20'
+    if_gain8: '20'
+    if_gain9: '20'
+    iq_balance_mode0: '0'
+    iq_balance_mode1: '0'
+    iq_balance_mode10: '0'
+    iq_balance_mode11: '0'
+    iq_balance_mode12: '0'
+    iq_balance_mode13: '0'
+    iq_balance_mode14: '0'
+    iq_balance_mode15: '0'
+    iq_balance_mode16: '0'
+    iq_balance_mode17: '0'
+    iq_balance_mode18: '0'
+    iq_balance_mode19: '0'
+    iq_balance_mode2: '0'
+    iq_balance_mode20: '0'
+    iq_balance_mode21: '0'
+    iq_balance_mode22: '0'
+    iq_balance_mode23: '0'
+    iq_balance_mode24: '0'
+    iq_balance_mode25: '0'
+    iq_balance_mode26: '0'
+    iq_balance_mode27: '0'
+    iq_balance_mode28: '0'
+    iq_balance_mode29: '0'
+    iq_balance_mode3: '0'
+    iq_balance_mode30: '0'
+    iq_balance_mode31: '0'
+    iq_balance_mode4: '0'
+    iq_balance_mode5: '0'
+    iq_balance_mode6: '0'
+    iq_balance_mode7: '0'
+    iq_balance_mode8: '0'
+    iq_balance_mode9: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nchan: '1'
+    num_mboards: '1'
+    sample_rate: samp_rate
+    sync: sync
+    time_source0: ''
+    time_source1: ''
+    time_source2: ''
+    time_source3: ''
+    time_source4: ''
+    time_source5: ''
+    time_source6: ''
+    time_source7: ''
+    type: fc32
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 220]
+    rotation: 0
+    state: enabled
+- name: sym_filt
+  id: fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Root-raised-cosine 0.2 = matched filter for DMR.
+
+      ~1 dB better than a Moving Average in simulation'
+    decim: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_delay: '0'
+    taps: rrc_taps
+    type: fff
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [872, 312.0]
+    rotation: 0
+    state: enabled
+- name: up48
+  id: rational_resampler_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 8 kHz -> 48 kHz (every sound card supports 48 kHz)
+    decim: '1'
+    fbw: '0'
+    interp: '6'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    taps: '[]'
+    type: fff
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1464, 252.0]
+    rotation: 0
+    state: enabled
+- name: vol
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Volume
+    const: volume
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1328, 288.0]
+    rotation: 0
+    state: enabled
+- name: xlate_0
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: lo_offset + fine_hz
+    comment: 'Stage 1: channel to 0 Hz, wide LPF, /4 (~25 taps, only anti-alias)'
+    decim: decim1
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    taps: firdes.low_pass(1.0, samp_rate, 40e3, 120e3)
+    type: ccf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 300.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [chan_lpf, '0', quad_demod, '0']
+- [dmr_dec, '0', vol, '0']
+- [dmr_dec, '1', hist_sym, '0']
+- [quad_demod, '0', sym_filt, '0']
+- [rtlsdr_source_0, '0', xlate_0, '0']
+- [sym_filt, '0', dmr_dec, '0']
+- [up48, '0', audio_out, '0']
+- [vol, '0', up48, '0']
+- [xlate_0, '0', chan_lpf, '0']
+- [xlate_0, '0', fft_if, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.10.0
