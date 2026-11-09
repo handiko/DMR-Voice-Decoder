@@ -2,7 +2,7 @@
 
 *A long, honest walkthrough of my DMR receiver: how a cheap dongle and a pile of GNU Radio blocks can find DMR bursts, read who is talking to whom, follow a Tier III control channel, and turn the voice bits back into speech you can actually hear.*
 
-![Code Repo](https://github.com/handiko/DMR-Voice-Decoder)
+![>>Code repo here<<](https://github.com/handiko/DMR-Voice-Decoder)
 
 ---
 
