@@ -110,7 +110,7 @@ class dmr_rx(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(1, 2):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._fine_hz_range = qtgui.Range(-30000, 30000, 100, 0, 200)
+        self._fine_hz_range = qtgui.Range(-300000, 300000, 100, 0, 200)
         self._fine_hz_win = qtgui.RangeWidget(self._fine_hz_range, self.set_fine_hz, "Fine tune [Hz]", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._fine_hz_win, 0, 2, 1, 1)
         for r in range(0, 1):
