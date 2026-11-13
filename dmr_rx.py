@@ -79,7 +79,7 @@ class dmr_rx(gr.top_block, Qt.QWidget):
         self.volume = volume = 1.0
         self.rrc_taps = rrc_taps = [t/sum(rrc_raw) for t in rrc_raw]
         self.rf_gain = rf_gain = 29.7
-        self.ppm = ppm = 35
+        self.ppm = ppm = 34
         self.plan_step_hz = plan_step_hz = 12500
         self.plan_ref_lpcn = plan_ref_lpcn = 151
         self.plan_ref_hz = plan_ref_hz = 148.7215e6
@@ -103,7 +103,7 @@ class dmr_rx(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._ppm_range = qtgui.Range(-60, 60, 0.5, 35, 200)
+        self._ppm_range = qtgui.Range(-60, 60, 0.5, 34, 200)
         self._ppm_win = qtgui.RangeWidget(self._ppm_range, self.set_ppm, "Freq corr [ppm]", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._ppm_win, 0, 1, 1, 1)
         for r in range(0, 1):
