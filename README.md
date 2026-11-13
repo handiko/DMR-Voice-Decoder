@@ -5,6 +5,7 @@
 [Code repo here](https://github.com/handiko/DMR-Voice-Decoder)
 
 ---
+![](dmr.png)
 
 ## Why I did this
 
